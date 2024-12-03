@@ -140,7 +140,7 @@ std::set<std::pair<std::string, std::string>> edgesChecked;
 // Ripped from pgis
 const auto cMetric = [](std::string&& name, auto&& cube, auto cn) {
   if constexpr (std::is_pointer_v<decltype(cn)>) {
-    const auto met = cube.get_met(name);
+    const auto met = cube.get_met(name.c_str());
     typedef decltype(cube.get_sev(met, cn, cube.get_thrdv().at(0))) RetType;
     RetType metric{};
     for (auto t : cube.get_thrdv()) {
@@ -152,6 +152,24 @@ const auto cMetric = [](std::string&& name, auto&& cube, auto cn) {
   }
 };
 const auto getVisits = [](auto&& cube, auto cn) { return cMetric(std::string("visits"), cube, cn); };
+
+std::set<std::string> getAllOverriddenFunctions(nlohmann::json& cg, nlohmann::json& baseFn,
+                                                const std::string& overridesKey) {
+  std::set<std::string> overriddenSet;
+  auto overrides = baseFn[overridesKey];
+  std::for_each(overrides.begin(), overrides.end(),
+                [&cg, &overriddenSet, &overridesKey](const std::string& overridesFn) {
+                  if (!cg.contains(overridesFn)) {
+                    return;
+                  }
+                  auto& fnNode = cg[overridesFn];
+                  overriddenSet.insert(overridesFn);
+                  for (auto& entry : getAllOverriddenFunctions(cg, fnNode, overridesKey)) {
+                    overriddenSet.insert(entry);
+                  }
+                });
+  return overriddenSet;
+}
 
 int main(int argc, char** argv) {
   std::string ipcg;
@@ -250,7 +268,7 @@ int main(int argc, char** argv) {
     // check polymorphism (currently only first hierarchy level)
     bool overriddenFunctionParentFound = false;
     bool overriddenFunctionCalleeFound = false;
-    const auto& overriddenFunctions = node[overridesKey];
+    const auto& overriddenFunctions = getAllOverriddenFunctions(callgraph, node, overridesKey);
     for (const std::string overriddenFunctionName : overriddenFunctions) {
       if (!getOrInsert(callgraph, overriddenFunctionName, insertNewNodes, version)) {
         continue;
@@ -267,6 +285,27 @@ int main(int argc, char** argv) {
           (std::find(callees.begin(), callees.end(), overriddenFunctionName) != callees.end());
       if (overriddenFunctionCalleeFound) {
         break;
+      }
+    }
+    if ((!calleeFound && !overriddenFunctionCalleeFound) || (!parentFound && !overriddenFunctionParentFound)) {
+      std::cerr << "[Debugging] Callee/parent not found while checking cube node: " << nodeName << " -> " << parentName
+                << std::endl;
+      std::cerr << (overriddenFunctionCalleeFound
+                        ? (overriddenFunctionParentFound ? "Both callee and parent" : "Callee")
+                        : "Parent")
+                << " was not found" << std::endl;
+      std::cerr << "Callee overrides:" << std::endl;
+      for (const std::string overriddenFunctionName : overriddenFunctions) {
+        const auto& overriddenFunction = callgraph[overriddenFunctionName];
+        const auto& parents = overriddenFunction[parentKey];
+        std::cerr << "\t" << overriddenFunctionName << " with parents " << std::endl;
+        for (auto& parent : parents) {
+          std::cerr << "\t\t" << parent << std::endl;
+        }
+      }
+      std::cerr << " and parent has callees: " << std::endl;
+      for (auto& pCallee : callees) {
+        std::cerr << "\t" << pCallee << std::endl;
       }
     }
 

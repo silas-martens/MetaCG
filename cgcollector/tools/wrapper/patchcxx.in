@@ -1,0 +1,50 @@
+#!/bin/bash
+
+## TODO: seperate ldflags and cxx flags
+LLVM_FLAGS=`@LLVM_CONFIG@ --cxxflags --ldflags --libs --system-libs`
+PASS=@CGPATCH_BUILD_DIR@/libcgpatch-pass.so
+RUNTIME=@CGPATCH_BUILD_DIR@/libcgpatch-runtime.a
+
+# Check if linking is enabled
+linking=yes
+for arg in "$@" ; do
+    case "$arg" in
+    	-c|-S|-E|-M|-MM|-MMD)
+          linking=no
+    	    ;;
+    esac
+done
+
+CLI_FLAGS="-Xclang -load -Xclang $PASS"
+
+ARGS=()
+#Command option
+for arg in "$@" ; do
+    case $arg in
+        -shared | --shared)
+            echo "shared libraries are not supported"
+            exit 1
+            ;;
+        --instrument-ctors-dtors | -instrument-ctors-dtors)
+            CLI_FLAGS+=" -mllvm -instrument-ctors-dtors"
+            ;;
+        *)
+            ARGS+=("$arg")
+            ;;
+    esac
+done
+
+set -- "${ARGS[@]}"  #  resets the positional parameters ($@) with the values stored in ARGS.
+
+# set first argument as compiler
+COMPILER=$1;
+shift
+
+if [[ "$linking" == yes ]]
+then
+  echo "[Wrapper] Linking is enabled"
+  $COMPILER -fpass-plugin=$PASS  "$@"  -L@SPDLOG_LIB@ -lspdlog -Wl,--rpath,@SPDLOG_LIB@ -L@GRAPH_LIB@ -lmetacg -Wl,-whole-archive $RUNTIME -Wl,-no-whole-archive -Wl,--rpath,@GRAPH_LIB@ $LLVM_FLAGS
+else
+  echo "[Wrapper] Linking is disabled"
+  $COMPILER $CLI_FLAGS -fpass-plugin=$PASS "$@"
+fi

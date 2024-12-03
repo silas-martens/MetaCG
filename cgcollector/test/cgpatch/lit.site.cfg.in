@@ -1,0 +1,11 @@
+@LIT_SITE_CFG_IN_HEADER@
+
+import sys
+
+config.filecheck_exe = "@FILECHECK_EXE@"
+config.metacc_exe = "@METACC_EXE@"
+
+
+# Let the main config do the real work.
+config.loaded_site_config = True
+lit_config.load_config(config, "@CGPATCH_PROJECT_DIR@/lit.cfg")
