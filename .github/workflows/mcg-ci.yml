@@ -106,3 +106,22 @@ jobs:
           run: |
             cd /opt/metacg/cgcollector/test/integration
             ./runner.sh build
+      - name: Run cpatch pass-tests (lit)
+        uses: addnab/docker-run-action@v3
+        with:
+          image: metacg-devel:latest
+          run: |
+            cd /opt/metacg/build/
+            make pass-tests
+            make pass-tests-lto
+            make pass-tests-optimized
+            make pass-tests-optimized-lto
+      - name: Run cgpatch integration tests
+        uses: addnab/docker-run-action@v3
+        with:
+          image: metacg-devel:latest
+          run: |
+            cd /opt/metacg/tools/cgpatch/test/integration
+            ./CGPIntegrationRunner.sh
+
+
