@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+
+DEBUG=false
+
+clangversion=$(clang --version | awk '{print $3}' | head -n 1)
+clangpath=''
+clang_include=''
+
+cgcollector_exe="@CGCOLLECTOR_PATH@cgcollector"
+cgcollector_lib="@CGCOLLECTOR_LIB@"
+
+if [ -z "$CLANG_BASE_PATH" ]; then
+  echo "CLANG_BASE_PATH is not set. Trying to determine automatically..."
+  clang_include="$(clang --print-resource-dir)/include"
+else
+  clang_include="$CLANG_BASE_PATH/lib/clang/$clangversion/include"
+fi
+
+
+collectorCommand=(
+  "$cgcollector_exe"
+  "--capture-ctors-dtors"
+  "--extra-arg=-I$clang_include"
+)
+
+for arg in "$@"; do
+  if [ "$arg" == "--debug" ]; then
+    DEBUG=true
+  else
+    args+=("$arg")
+  fi
+done
+
+if [ "$DEBUG" = true ]; then
+  echo "Running command:  LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$cgcollector_lib ${collectorCommand[*]} ${args[@]}"
+fi
+
+LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$cgcollector_lib" \
+"${collectorCommand[@]}" "${args[@]}"
+
