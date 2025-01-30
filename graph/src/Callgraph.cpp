@@ -14,11 +14,13 @@ using namespace metacg;
 CgNode* Callgraph::getMain() {
   if (mainNode) {
     return mainNode;
-  } else if ((mainNode = getNode("main")) || (mainNode = getNode("_Z4main")) || (mainNode = getNode("_ZSt4mainiPPc"))) {
-    return mainNode;
-  } else {
-    return nullptr;
   }
+
+  if ((mainNode = getNode("main")) || (mainNode = getNode("_Z4main")) || (mainNode = getNode("_ZSt4mainiPPc"))) {
+    return mainNode;
+  }
+
+  return nullptr;
 }
 
 size_t Callgraph::insert(const std::string& nodeName, const std::string& origin) {
@@ -158,11 +160,11 @@ bool Callgraph::isEmpty() const { return nodes.empty(); }
 CgNode* Callgraph::getOrInsertNode(const std::string& name, const std::string& origin) {
   if (auto node = getNode(name); node != nullptr) {
     return node;
-  } else {
-    auto node_id = insert(name, origin);
-    assert(nodes.find(node_id) != nodes.end());
-    return nodes[node_id].get();
   }
+
+  auto node_id = insert(name, origin);
+  assert(nodes.find(node_id) != nodes.end());
+  return nodes[node_id].get();
 }
 
 void metacg::Callgraph::merge(const metacg::Callgraph& other) {

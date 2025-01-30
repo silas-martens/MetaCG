@@ -35,15 +35,18 @@ function(
   input
   output
 )
-  set(CGPATCH_BUILD_DIR ${CMAKE_BINARY_DIR}/cgcollector/tools/cgpatch)
-  set(GRAPH_LIB ${CMAKE_BINARY_DIR}/graph)
-  set(SPDLOG_LIB ${CMAKE_BINARY_DIR}/_deps/spdlog-build/)
-  set(LLVM_CONFIG ${LLVM_BINARY_DIR}/bin/llvm-config)
-  set(CC_PATH ${LLVM_BINARY_DIR}/bin/clang)
-  set(CXX_PATH ${LLVM_BINARY_DIR}/bin/clang++)
+  set(METACG_INSTALL_DIR ${CMAKE_INSTALL_PREFIX})
 
   make_executable(${input} ${output})
 endfunction()
 
 configure_script(patchcc.in patchcc)
 configure_script(patchcxx.in patchcxx)
+
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/patchcc" "${CMAKE_CURRENT_BINARY_DIR}/patchcxx"
+  DESTINATION bin
+  PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE
+              GROUP_READ GROUP_EXECUTE
+              WORLD_READ WORLD_EXECUTE
+)
+

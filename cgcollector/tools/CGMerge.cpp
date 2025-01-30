@@ -73,10 +73,11 @@ nlohmann::json mergeFileFormatTwo(const std::string& wholeCGFilename, const std:
       } else {
         auto& c = wholeCG[it.key()];
         auto& v = it.value();
-        // TODO multiple bodies possible, if the body is in header?
-        // TODO separate merge of meta information
         if (v["meta"].is_null()) {
           doMerge(c, v);
+
+        // TODO multiple bodies possible, if the body is in header?
+        // TODO separate merge of meta information
         } else if (v["hasBody"].get<bool>() && c["hasBody"].get<bool>()) {
           // std::cout << "WARNING: merge of " << it.key()
           //          << " has detected multiple bodies (equal number of statements would be good.)" << std::endl;
@@ -111,7 +112,7 @@ nlohmann::json mergeFileFormatTwo(const std::string& wholeCGFilename, const std:
           // nothing special
         }
         if (c["meta"].is_null()) {
-          // leer
+          // nothing special
         } else if (!c["meta"].contains("estimateCallCount") && v["meta"].contains("estimateCallCount")) {
           c["meta"]["estimateCallCount"] = v["meta"]["estimateCallCount"];
         } else if (c["meta"].contains("estimateCallCount") && v["meta"].contains("estimateCallCount")) {

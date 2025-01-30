@@ -14,8 +14,10 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include "LoggerUtil.h"
 
 namespace SymbolRetriever {
+
 
 using SymbolTable = std::unordered_map<std::uintptr_t, std::string>;
 using SymbolSet = std::unordered_set<std::string>;

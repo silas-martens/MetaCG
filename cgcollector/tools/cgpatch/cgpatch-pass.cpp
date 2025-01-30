@@ -27,11 +27,11 @@ static cl::opt<bool> instrumentCtorsDtors("instrument-ctors-dtors", cl::desc("In
                                           cl::init(false));
 
 namespace {
-void insertMetaCGCall(Instruction& ins, Function& F, Value* calledOperand, Function* runtimeFunction);
+void insertMetaCGCall(Instruction& ins, Function& f, Value* calledOperand, Function* runtimeFunction);
 
 // Instrumentation
 void instrumentIndirectCalls(Module& M) {
-  ItaniumPartialDemangler Demangler;
+  ItaniumPartialDemangler demangler;
   nlohmann::json j;
 
   // Counter variables
@@ -44,8 +44,9 @@ void instrumentIndirectCalls(Module& M) {
   Function* runtimeFunction = cast<Function>(M.getOrInsertFunction("__metacg_indirect_call", functionType).getCallee());
 
   for (Function& F : M) {
-    for (BasicBlock& BB : F) {
-      for (Instruction& Ins : BB) {
+    for(BasicBlock& B : F)
+      for(Instruction& Ins : B) {
+        
         // Check if Ins is a call instruction
         auto* CB = dyn_cast<CallBase>(&Ins);
         if (!CB)
@@ -56,8 +57,8 @@ void instrumentIndirectCalls(Module& M) {
           // Instrument constructors & destructors if option is enabled
           if (instrumentCtorsDtors) {
             // Setup demangler's internal state to work on the called function name
-            Demangler.partialDemangle(calledFunction->getName().str().c_str());
-            if (Demangler.isCtorOrDtor()) {  // constructor call
+            demangler.partialDemangle(calledFunction->getName().str().c_str());
+            if (demangler.isCtorOrDtor()) {  // constructor call
               insertMetaCGCall(Ins, F, CB->getCalledOperand(), runtimeFunction);
               ctorDtorCallCount++;
             }
@@ -67,7 +68,6 @@ void instrumentIndirectCalls(Module& M) {
           indirectCallCount++;
         }
       }
-    }
   }
   llvm::outs() << "[Info] Instrumented " << (indirectCallCount + ctorDtorCallCount) << " function calls in "
                << M.getName().str() << ":\n"
@@ -79,9 +79,9 @@ void instrumentIndirectCalls(Module& M) {
 }
 
 // Insert call to __metacg_indirect_call before the current instruction
-void insertMetaCGCall(Instruction& ins, Function& F, Value* calledOperand, Function* runtimeFunction) {
+void insertMetaCGCall(Instruction& ins, Function& f, Value* calledOperand, Function* runtimeFunction) {
   IRBuilder<> Builder(&ins);
-  auto* strArg = Builder.CreateGlobalString(F.getName().str());
+  auto* strArg = Builder.CreateGlobalString(f.getName().str());
   Builder.CreateCall(runtimeFunction, {strArg, calledOperand});
 }
 
@@ -90,7 +90,7 @@ struct RuntimeCallInjection : PassInfoMixin<RuntimeCallInjection> {
     instrumentIndirectCalls(M);
     return PreservedAnalyses::all();
   }
-
+  // We also need to be able to instrument optnone annotated functions
   static bool isRequired() { return true; }
 };
 }  // namespace

@@ -32,3 +32,10 @@ add_json(cgpatch-runtime)
 add_metacg(cgpatch-pass)
 add_spdlog_libraries(cgpatch-pass)
 add_json(cgpatch-pass)
+
+
+install(TARGETS 
+      cgpatch-pass
+      cgpatch-runtime
+      LIBRARY DESTINATION lib
+)

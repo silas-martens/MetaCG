@@ -45,7 +45,3 @@ configure_package_config_file(
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake DESTINATION lib/cmake)
 
 install(PROGRAMS ${CMAKE_CURRENT_SOURCE_DIR}/cgc DESTINATION bin)
-
-# add_subdirectory(wrapper)
-
-# add_subdirectory(cgpatch)

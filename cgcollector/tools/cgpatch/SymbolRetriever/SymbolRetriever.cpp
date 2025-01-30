@@ -13,16 +13,22 @@
 #include <unistd.h>
 
 namespace SymbolRetriever {
+
+auto console = metacg::MCGLogger::instance().getConsole();
+auto errConsole = metacg::MCGLogger::instance().getErrConsole();
+
 struct RemoveEnvInScope {
   explicit RemoveEnvInScope(const char* varName) : varName(varName) {
     oldVal = getenv(varName);
-    if (oldVal)
+    if (oldVal) {
       setenv(varName, "", true);
+    }
   }
 
   ~RemoveEnvInScope() {
-    if (oldVal)
+    if (oldVal) {
       setenv(varName, oldVal, true);
+    }
   }
 
  private:
@@ -42,14 +48,17 @@ std::string getExecPath() {
 
 std::vector<MemMapEntry> readMemoryMap() {
   RemoveEnvInScope removePreload("LD_PRELOAD");
-
   std::vector<MemMapEntry> entries;
+
+  entries.reserve(1024);
 
   std::ifstream memory_map("/proc/self/maps");
   if (!memory_map.is_open()) {
-    std::cout << "Could not load memory map.\n";
+    console->info("Could not load memory map.");
     return entries;
   }
+
+
 
   std::string addrRange;
   std::string perms;
@@ -72,6 +81,7 @@ std::vector<MemMapEntry> readMemoryMap() {
     entries.push_back({path, addrBegin, offset});
   }
 
+  entries.shrink_to_fit();
   memory_map.close();
   return entries;
 }
@@ -82,10 +92,12 @@ std::vector<std::string> readSharedObjectDependencies(const std::string& exec_fi
 
   std::string command = "ldd " + exec_file;
 
+  dsoFiles.reserve(64);
+
   char buffer[256];
   FILE* output = popen(command.c_str(), "r");
   if (!output) {
-    std::cout << "Could not execute ldd.\n";
+    console->info("Could not execute ldd.");
     return {};
   }
 
@@ -118,7 +130,7 @@ SymbolTable loadSymbolTable(const std::string& object_file) {
   char buffer[256] = {0};
   FILE* output = popen(command.c_str(), "r");
   if (!output) {
-    std::cout << "Unable to execute nm to resolve symbol names.\n";
+    console->info("Unable to execute nm to resolve symbol names.");
     return {};
   }
 
@@ -141,7 +153,7 @@ SymbolTable loadSymbolTable(const std::string& object_file) {
   pclose(output);
 
   if (table.empty()) {
-    std::cout << "Unable to resolve symbol names for binary " << object_file << "\n";
+    console->info("Unable to resolve symbol names for binary {}", object_file);
   }
 
   return table;
@@ -158,7 +170,7 @@ std::string getELFType(const std::string& object_file) {
   char buffer[256] = {0};
   FILE* output = popen(command.c_str(), "r");
   if (!output) {
-    std::cout << "Unable to execute llvm-readelf.\n";
+    console->info("Unable to execute llvm-readelf.");
     return {};
   }
 
@@ -169,7 +181,7 @@ std::string getELFType(const std::string& object_file) {
     std::istringstream line(buffer);
     line >> desc >> type;
   } else {
-    std::cout << "Output buffer is empty\n";
+    console->info("Output buffer is empty.");
   }
   return type;
 }
@@ -224,21 +236,21 @@ MappedSymTableMap loadMappedSymTables(const std::string& execFile, bool printDeb
         entry.offset = 0;
       }
       if (printDebug) {
-        std::cout << "ELF type: " << elfType << "\n";
+        errConsole->error("ELF type: {}", elfType);
       }
     }
     auto& filename = entry.path;
     auto table = loadSymbolTable(filename);
     if (table.empty()) {
-      std::cout << "Could not load symbols from " << filename << "\n";
+      console->info("Could not load symbols from {}", filename);
 
       continue;
     }
 
     if (printDebug) {
-      std::cerr << "Loaded " << table.size() << " symbols from " << filename << "\n";
-      std::cerr << " > Starting address: 0x" << std::hex << entry.addrBegin << "\n";
-      std::cerr << " > Offset: 0x" << entry.offset << std::dec << "\n";
+      errConsole->error("Loaded {} symbols from {}.", table.size(), filename);
+      errConsole->error("Starting address: 0x{}{}", std::hex, entry.addrBegin);
+      errConsole->error(" > Offset: 0x{}{}", entry.offset, std::dec);
     }
     MappedSymTable mappedTable{std::move(table), entry};
     addrToSymTable[entry.addrBegin] = mappedTable;

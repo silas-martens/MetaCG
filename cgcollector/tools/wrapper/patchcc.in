@@ -1,9 +1,9 @@
 #!/bin/bash
 
 
-LLVM_FLAGS=`@LLVM_CONFIG@ --cflags --ldflags --libs --system-libs`
-PASS=@CGPATCH_BUILD_DIR@/libcgpatch-pass.so
-RUNTIME=@CGPATCH_BUILD_DIR@/libcgpatch-runtime.a
+LLVM_FLAGS=`llvm-config --cflags --ldflags --libs --system-libs`
+PASS=@METACG_INSTALL_DIR@/lib/libcgpatch-pass.so
+RUNTIME=@METACG_INSTALL_DIR@/lib64/libcgpatch-runtime.a
 
 # Check if linking is enabled
 linking=yes
@@ -43,7 +43,7 @@ shift
 if [[ "$linking" == yes ]]
 then
   echo "[Wrapper] Linking is enabled"
-  $COMPILER -fpass-plugin=$PASS  "$@" -lstdc++ -L@SPDLOG_LIB@ -lspdlog -Wl,--rpath,@SPDLOG_LIB@ -L@GRAPH_LIB@ -lmetacg -Wl,-whole-archive $RUNTIME -Wl,-no-whole-archive -Wl,--rpath,@GRAPH_LIB@ $LLVM_FLAGS
+  $COMPILER -fpass-plugin=$PASS  "$@" -lstdc++ -L@METACG_INSTALL_DIR@/lib64 -lmetacg -Wl,-whole-archive $RUNTIME -Wl,-no-whole-archive -Wl,--rpath,@GRAPH_LIB@ $LLVM_FLAGS
 else
   echo "[Wrapper] Linking is disabled"
   $COMPILER $CLI_FLAGS -fpass-plugin=$PASS "$@"
