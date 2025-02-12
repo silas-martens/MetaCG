@@ -25,9 +25,13 @@ using namespace llvm;
 // option parsing
 static cl::opt<bool> instrumentCtorsDtors("instrument-ctors-dtors", cl::desc("Instrument constructors and destructors"),
                                           cl::init(false));
+static cl::opt<bool> filterVirtualCalls("filter-virtual-calls", cl::desc("Filter virtual calls"), cl::init(false));
+
+
 
 namespace {
 void insertMetaCGCall(Instruction& ins, Function& f, Value* calledOperand, Function* runtimeFunction);
+bool isVirtualCall(const CallBase& CB);
 
 // Instrumentation
 void instrumentIndirectCalls(Module& M) {
@@ -64,6 +68,9 @@ void instrumentIndirectCalls(Module& M) {
             }
           }
         } else {  // indirect call
+          if(filterVirtualCalls && isVirtualCall(*CB))
+                            continue;
+
           insertMetaCGCall(Ins, F, CB->getCalledOperand(), runtimeFunction);
           indirectCallCount++;
         }
@@ -84,6 +91,14 @@ void insertMetaCGCall(Instruction& ins, Function& f, Value* calledOperand, Funct
   auto* strArg = Builder.CreateGlobalString(f.getName().str());
   Builder.CreateCall(runtimeFunction, {strArg, calledOperand});
 }
+
+bool isVirtualCall(const CallBase& CB) {
+  if (MDNode *DevirtMetadata = CB.getMetadata("devirt")) {
+    return true;
+  }
+  return false;
+}
+
 
 struct RuntimeCallInjection : PassInfoMixin<RuntimeCallInjection> {
   PreservedAnalyses run(Module& M, ModuleAnalysisManager&) {

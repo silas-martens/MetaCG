@@ -28,6 +28,9 @@ for arg in "$@" ; do
         --instrument-ctors-dtors | -instrument-ctors-dtors)
             CLI_FLAGS+=" -mllvm -instrument-ctors-dtors"
             ;;
+        --filter-virtual-calls | -filter-virtual-calls)
+            CLI_FLAGS+=" -mllvm -filter-virtual-calls"
+            ;;
         *)
             ARGS+=("$arg")
             ;;
