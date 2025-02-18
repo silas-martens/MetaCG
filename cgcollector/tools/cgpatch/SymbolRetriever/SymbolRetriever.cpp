@@ -11,6 +11,8 @@
 #include <iostream>
 #include <sstream>
 #include <unistd.h>
+#include <fcntl.h>
+#include <elf.h>
 
 namespace SymbolRetriever {
 
@@ -35,6 +37,35 @@ struct RemoveEnvInScope {
   const char* varName;
   const char* oldVal;
 };
+
+
+uintptr_t get_text_section_offset_from_library(const std::string &lib_path) {
+    int fd = open(lib_path.c_str(), O_RDONLY);
+    if (fd < 0) {
+        perror("open");
+        return 0;
+    }
+
+    Elf64_Ehdr ehdr;
+    read(fd, &ehdr, sizeof(ehdr));
+
+    lseek(fd, ehdr.e_phoff, SEEK_SET);
+
+    Elf64_Phdr phdr;
+    uintptr_t text_offset = 0;
+    for (int i = 0; i < ehdr.e_phnum; i++) {
+        read(fd, &phdr, sizeof(phdr));
+
+        if (phdr.p_type == PT_LOAD && (phdr.p_flags & PF_X)) {
+            // Found the executable segment in the shared library
+            text_offset = phdr.p_vaddr - phdr.p_offset;
+            break;
+        }
+    }
+
+    close(fd);
+    return text_offset;
+}
 
 std::string getExecPath() {
   RemoveEnvInScope removePreload("LD_PRELOAD");
@@ -78,7 +109,9 @@ std::vector<MemMapEntry> readMemoryMap() {
     }
 
     uintptr_t addrBegin = std::stoul(addrRange.substr(0, addrRange.find('-')), nullptr, 16);
-    entries.push_back({path, addrBegin, offset});
+    // The offset reported by the memory map does not consider alignment. 
+    uint64_t textOffset = get_text_section_offset_from_library(path);
+    entries.push_back({path, addrBegin, offset + textOffset});
   }
 
   entries.shrink_to_fit();
@@ -225,20 +258,14 @@ SymTableList loadAllSymTables(const std::string& execFile) {
 MappedSymTableMap loadMappedSymTables(const std::string& execFile, bool printDebug) {
   MappedSymTableMap addrToSymTable;
 
+  if (printDebug) {
+    auto elfType = getELFType(execFile);
+    errConsole->error("ELF type: {}", elfType);
+  }
+
   // Load symbols from executable and shared libs
   auto memMap = readMemoryMap();
   for (auto& entry : memMap) {
-    // Executable starts at address 0x0
-    if (addrToSymTable.empty()) {
-      auto elfType = getELFType(execFile);
-      if (elfType == "EXEC") {
-        entry.addrBegin = 0;
-        entry.offset = 0;
-      }
-      if (printDebug) {
-        errConsole->error("ELF type: {}", elfType);
-      }
-    }
     auto& filename = entry.path;
     auto table = loadSymbolTable(filename);
     if (table.empty()) {
