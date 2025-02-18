@@ -28,12 +28,19 @@ static cl::opt<bool> instrumentCtorsDtors("instrument-ctors-dtors", cl::desc("In
 static cl::opt<bool> filterVirtualCalls("filter-virtual-calls", cl::desc("Filter virtual calls"), cl::init(false));
 
 
-
 namespace {
+
+enum CallType {
+  Direct, Virtual, Indirect, Unknown
+};
+
 void insertMetaCGCall(Instruction& ins, Function& f, Value* calledOperand, Function* runtimeFunction);
 bool isVirtualCall(const CallBase& CB);
+CallType detectCallType(CallBase* Call);
+Value* getTypeTestMetadata(Value *V);
 
-// Instrumentation
+
+    // Instrumentation
 void instrumentIndirectCalls(Module& M) {
   ItaniumPartialDemangler demangler;
   nlohmann::json j;
@@ -48,16 +55,21 @@ void instrumentIndirectCalls(Module& M) {
   Function* runtimeFunction = cast<Function>(M.getOrInsertFunction("__metacg_indirect_call", functionType).getCallee());
 
   for (Function& F : M) {
+
     for(BasicBlock& B : F)
       for(Instruction& Ins : B) {
-        
+
+
         // Check if Ins is a call instruction
         auto* CB = dyn_cast<CallBase>(&Ins);
-        if (!CB)
+        auto CT = detectCallType(CB);
+
+        if(CT == CallType::Unknown)
           continue;
 
+
         auto calledFunction = CB->getCalledFunction();
-        if (calledFunction) {  // Direct call
+        if (CT == CallType::Direct) {  // Direct call
           // Instrument constructors & destructors if option is enabled
           if (instrumentCtorsDtors) {
             // Setup demangler's internal state to work on the called function name
@@ -68,8 +80,8 @@ void instrumentIndirectCalls(Module& M) {
             }
           }
         } else {  // indirect call
-          if(filterVirtualCalls && isVirtualCall(*CB))
-                            continue;
+          if(filterVirtualCalls && CT == CallType::Virtual)
+            continue;
 
           insertMetaCGCall(Ins, F, CB->getCalledOperand(), runtimeFunction);
           indirectCallCount++;
@@ -92,12 +104,84 @@ void insertMetaCGCall(Instruction& ins, Function& f, Value* calledOperand, Funct
   Builder.CreateCall(runtimeFunction, {strArg, calledOperand});
 }
 
-bool isVirtualCall(const CallBase& CB) {
-  if (MDNode *DevirtMetadata = CB.getMetadata("devirt")) {
-    return true;
+CallType detectCallType(CallBase* Call) {
+
+  // We detect the following pattern for calling virtual functions
+  //   %1 = load ptr, ptr %obj -> Loading object
+  //   %2 = load ptr, ptr %1   -> Loading vtable ptr from object
+  //   %3 = getelementptr ptr, ptr %2, i32 index -> Getting function address location from vtable
+  //   %4 = load ptr, ptr %3   -> Loading function address
+  //   call void %4(ptr %obj)  -> Calling virtual function
+
+  // Check if call is null
+  if (!Call) {
+    return Unknown;
   }
-  return false;
+
+  // Check for direct callee
+  if (Call->getCalledFunction()) {
+    return Direct;
+  }
+
+  Value *FuncPtr = Call->getCalledOperand();
+
+  LoadInst *FuncLoad = dyn_cast<LoadInst>(FuncPtr);
+  if (!FuncLoad) {
+    return Indirect;
+  }
+  Value *FuncSource = FuncLoad->getPointerOperand();
+  GetElementPtrInst *GEP = dyn_cast<GetElementPtrInst>(FuncSource);
+  if (!GEP) {
+    return Indirect;
+  }
+  Value *VTablePtr = GEP->getPointerOperand();
+
+  // Get type test metadata. If we don't have this, it could just be a regular indirect call mimicking the same
+  // pattern.
+  Value* TypeTestMD = getTypeTestMetadata(VTablePtr);
+  if (!TypeTestMD) {
+    return Indirect;
+  }
+
+  LoadInst *VTableLoad = dyn_cast<LoadInst>(VTablePtr);
+  if (!VTableLoad) {
+    return Indirect;
+  }
+
+  Value *ObjectPtr = VTableLoad->getPointerOperand();
+  Value *Idx = GEP->getOperand(1);
+
+  // Could check if idx is 0 (meaning the VTable is the first entry in the struct), but this is not guaranteed by the standard
+  //   auto *ConstIdx = dyn_cast<ConstantInt>(Idx);
+  //   if (!ConstIdx || ConstIdx->isZero()) return Indirect;
+
+
+  // Finally, check if first argument is 'this'
+  if (Call->arg_size() > 0 && Call->getArgOperand(0) == ObjectPtr) {
+    return Virtual;
+  }
+
+  // Unknown because the combination of an apparent VTable load, but not passing 'this' is very strange.
+  return Unknown;
 }
+
+Value* getTypeTestMetadata(Value *V) {
+  for (auto *U : V->users()) {
+    //            outs() << "Testing user " << *U <<": ";
+    if (auto *Intr = dyn_cast<IntrinsicInst>(U)) {
+      //                outs() << " is intrisic ";
+      auto ID = Intr->getIntrinsicID();
+      if (ID == Intrinsic::public_type_test || ID == Intrinsic::type_test) {
+        //                    outs() << " type test!\n";
+        return Intr;
+      }
+      //                outs() << " of other type: " << Intrinsic::getName(Intr->getIntrinsicID());
+    }
+    //            outs() << " no\n";
+  }
+  return nullptr;
+}
+
 
 
 struct RuntimeCallInjection : PassInfoMixin<RuntimeCallInjection> {
@@ -109,6 +193,7 @@ struct RuntimeCallInjection : PassInfoMixin<RuntimeCallInjection> {
   static bool isRequired() { return true; }
 };
 }  // namespace
+
 
 // Registration of the new pass
 llvm::PassPluginLibraryInfo getRuntimeCallInjectionPluginInfo() {
