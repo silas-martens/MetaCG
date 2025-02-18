@@ -45,7 +45,6 @@ void finalizeGlobalCallgraph() {
     metacg::io::JsonSink jsonSink;
     mcgWriter.write(globalCallgraph.get(), jsonSink);
     nlohmann::json j = jsonSink.getJson();
-    std::cout << "callgraph size: " << globalCallgraph->size() << "\n";
 
     const char* filename = std::getenv("CGPATCH_CG_NAME");
     if (!filename) {
@@ -53,7 +52,6 @@ void finalizeGlobalCallgraph() {
     }
     std::ofstream ofs(filename);
     if (ofs.is_open()) {
-      std::cout << "OUTPUTTING\n";
       ofs << j;
       ofs.close();
     } else {
@@ -94,7 +92,9 @@ extern "C" void __metacg_indirect_call(const char* name, void* address) {
     errConsole->error("Could not find symbol for address {:#x}", reinterpret_cast<std::uintptr_t>(address));
     return;
   }
-  // Add new edge if edge does not exist yet
+
+  //std::cout << "Added an edge from " << name << " to " << symbol << "\n";
+   // Add new edge if edge does not exist yet
   if (!globalCallgraph->existEdgeFromTo(name, symbol)) {
     auto caller = globalCallgraph->getOrInsertNode(name);
     auto callee = globalCallgraph->getOrInsertNode(symbol);
