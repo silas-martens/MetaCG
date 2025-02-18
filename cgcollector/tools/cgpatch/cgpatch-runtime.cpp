@@ -28,13 +28,44 @@ int counter;
 //Logger
 spdlog::logger* console;
 spdlog::logger* errConsole;
-// Struct responsible for initialization and finalization of the patch-graph
-struct ValidatorInitializer {
-  ValidatorInitializer() {
+
+void initializeGlobalCallgraph() {
+  if (!globalCallgraph) {
     globalCallgraph = std::make_unique<metacg::Callgraph>();
     console = metacg::MCGLogger::instance().getConsole();
     errConsole = metacg::MCGLogger::instance().getErrConsole();
     counter = 0;
+  }
+}
+
+void finalizeGlobalCallgraph() {
+  // Write Callgraph to file
+  if (shouldWrite) {
+    metacg::io::VersionTwoMCGWriter mcgWriter;
+    metacg::io::JsonSink jsonSink;
+    mcgWriter.write(globalCallgraph.get(), jsonSink);
+    nlohmann::json j = jsonSink.getJson();
+    std::cout << "callgraph size: " << globalCallgraph->size() << "\n";
+
+    const char* filename = std::getenv("CGPATCH_CG_NAME");
+    if (!filename) {
+      filename = "validateGraph.json";
+    }
+    std::ofstream ofs(filename);
+    if (ofs.is_open()) {
+      std::cout << "OUTPUTTING\n";
+      ofs << j;
+      ofs.close();
+    } else {
+      errConsole->error("Unable to open file {} for writing.", filename);
+    }
+  }
+}
+
+// Struct responsible for initialization and finalization of the patch-graph
+struct ValidatorInitializer {
+  ValidatorInitializer() {
+    initializeGlobalCallgraph();
   }
 
   ValidatorInitializer(const ValidatorInitializer&) = delete;
@@ -44,32 +75,14 @@ struct ValidatorInitializer {
   ValidatorInitializer& operator=(ValidatorInitializer&&) = delete;
 
   ~ValidatorInitializer() {
-    // Write Callgraph to file
-    if (shouldWrite) {
-      metacg::io::VersionTwoMCGWriter mcgWriter;
-      metacg::io::JsonSink jsonSink;
-      mcgWriter.write(globalCallgraph.get(), jsonSink);
-      nlohmann::json j = jsonSink.getJson();
-
-      const char* filename = std::getenv("CGPATCH_CG_NAME");
-      if(!filename) {
-        filename = "validateGraph.json";
-      }
-      std::ofstream ofs(filename);
-      if (ofs.is_open()) {
-        ofs << j;
-        ofs.close();
-      } else {
-        errConsole->error("Unable to open file validateGraph.json for writing.");
-      }
-    }
+    finalizeGlobalCallgraph();
   }
-
-};  // _validator_init_finalize;
+} _validator_init_finalize;
 }  // namespace
 
 extern "C" void __metacg_indirect_call(const char* name, void* address) {
-  static ValidatorInitializer validator_init;
+  //static ValidatorInitializer validator_init;
+  initializeGlobalCallgraph();
   // resolve name
   if (symTables.empty()) {  // Loads symTables if symTables is not initialized yet. This potentially runs before the
                             // static constructor
@@ -167,9 +180,9 @@ extern "C" int MPI_Finalize(void) {
   MPI_Barrier(MPI_COMM_WORLD);
 
   // Delete temporary call-graphs
-  if (std::remove(filename.c_str()) != 0) {
-    errConsole->error("Rank {} failed to delete its temporary file: {}", rank, filename);
-  }
+  //if (std::remove(filename.c_str()) != 0) {
+  //  errConsole->error("Rank {} failed to delete its temporary file: {}", rank, filename);
+  //}
 
   int PMPI_FINALIZE_STATUS = PMPI_Finalize();  // Finalize MPI environment
 
@@ -188,7 +201,7 @@ extern "C" int MPI_Finalize(void) {
       metacg::io::VersionTwoMetaCGReader mcgReader(jsonSource);
       globalCallgraph = mcgReader.read();
     }
-    std::remove("mergedCallGraph.json");
+    //std::remove("mergedCallGraph.json");
   }
   return PMPI_FINALIZE_STATUS;
 }
