@@ -1314,6 +1314,13 @@ bool CallGraph::VisitCXXDestructorDecl(clang::CXXDestructorDecl *Destructor) {
           CallGraphNode* CalleeNode = getOrInsertNode(BaseDestructor);
           assert(CalleeNode);
           DtorNode->addCallee(CalleeNode);
+          // If the destructor is implicit (i.e. default) than it may not be visited.
+          // This happens if it is not explicitly used anywhere else.
+          // Since the call from the inheriting class destructor is implicit itself, we have to manually ensure this
+          // destructor is visisted.
+          if (BaseDestructor->isImplicit()) {
+            VisitCXXDestructorDecl(BaseDestructor);
+          }
         }
       }
     }
@@ -1326,6 +1333,11 @@ bool CallGraph::VisitCXXDestructorDecl(clang::CXXDestructorDecl *Destructor) {
             CallGraphNode* CalleeNode = getOrInsertNode(MemberDestructor);
             assert(CalleeNode);
             DtorNode->addCallee(CalleeNode);
+
+            // Same reasoning as for implicit base class destructors.
+            if (MemberDestructor->isImplicit()) {
+              VisitCXXDestructorDecl(MemberDestructor);
+            }
           }
         }
       }
