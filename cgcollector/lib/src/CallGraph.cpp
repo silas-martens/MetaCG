@@ -1300,7 +1300,6 @@ bool CallGraph::VisitCXXDestructorDecl(clang::CXXDestructorDecl *Destructor) {
   auto DtorNode = getOrInsertNode(Destructor);
   assert(DtorNode);
 
-  llvm::outs() << "Destructor found: " << ClassDecl->getNameAsString() << "\n";
 
   if (captureCtorsDtors) {
     // Check for base class destructors
@@ -1309,8 +1308,8 @@ bool CallGraph::VisitCXXDestructorDecl(clang::CXXDestructorDecl *Destructor) {
       if (BaseDecl && BaseDecl->hasDefinition()) {
         if (CXXDestructorDecl *BaseDestructor = BaseDecl->getDestructor()) {
 
-          llvm::outs() << "  -> Implicitly calls base destructor: ~"
-                       << BaseDecl->getNameAsString() << "()\n";
+         // llvm::outs() << "  -> Implicitly calls base destructor: ~"
+         //              << BaseDecl->getNameAsString() << "()\n";
           CallGraphNode* CalleeNode = getOrInsertNode(BaseDestructor);
           assert(CalleeNode);
           DtorNode->addCallee(CalleeNode);
