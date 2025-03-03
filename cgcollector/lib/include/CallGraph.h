@@ -144,6 +144,7 @@ class CallGraph : public clang::RecursiveASTVisitor<CallGraph> {
 
   bool shouldWalkTypesOfTypeLocs() const { return false; }
   bool shouldVisitTemplateInstantiations() const { return true; }
+  bool shouldVisitImplicitCode() const {return true;}
 
  private:
   UnresolvedMapTy unresolvedSymbols;
