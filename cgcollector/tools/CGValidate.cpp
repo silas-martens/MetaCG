@@ -287,27 +287,6 @@ int main(int argc, char** argv) {
         break;
       }
     }
-    if ((!calleeFound && !overriddenFunctionCalleeFound) || (!parentFound && !overriddenFunctionParentFound)) {
-      std::cerr << "[Debugging] Callee/parent not found while checking cube node: " << nodeName << " -> " << parentName
-                << std::endl;
-      std::cerr << (overriddenFunctionCalleeFound
-                        ? (overriddenFunctionParentFound ? "Both callee and parent" : "Callee")
-                        : "Parent")
-                << " was not found" << std::endl;
-      std::cerr << "Callee overrides:" << std::endl;
-      for (const std::string overriddenFunctionName : overriddenFunctions) {
-        const auto& overriddenFunction = callgraph[overriddenFunctionName];
-        const auto& parents = overriddenFunction[parentKey];
-        std::cerr << "\t" << overriddenFunctionName << " with parents " << std::endl;
-        for (auto& parent : parents) {
-          std::cerr << "\t\t" << parent << std::endl;
-        }
-      }
-      std::cerr << " and parent has callees: " << std::endl;
-      for (auto& pCallee : callees) {
-        std::cerr << "\t" << pCallee << std::endl;
-      }
-    }
 
     if (useNoBodyDetection) {
       bool pHasBody{true};
