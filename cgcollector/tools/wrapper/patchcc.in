@@ -29,7 +29,8 @@ for arg in "$@" ; do
             CLI_FLAGS+=" -mllvm -instrument-ctors-dtors"
             ;;
         --filter-virtual-calls | -filter-virtual-calls)
-            CLI_FLAGS+=" -mllvm -filter-virtual-calls -O0 -flto=thin -fwhole-program-vtables -fuse-ld=lld"
+           # CLI_FLAGS+=" -mllvm -filter-virtual-calls -fwhole-program-vtables -fuse-ld=lld"
+            CLI_LINKER_FLAGS=" -mllvm -filter-virtual-calls -fwhole-program-vtables"
             ;;
         *)
             ARGS+=("$arg")
@@ -46,8 +47,8 @@ shift
 if [[ "$linking" == yes ]]
 then
   echo "[Wrapper] Linking is enabled"
-  $COMPILER $CLI_FLAGS -fpass-plugin=$PASS "$@" -lstdc++ -L@METACG_INSTALL_DIR@/lib64 -lmetacg -Wl,-whole-archive $RUNTIME -Wl,-no-whole-archive -Wl,--rpath,@GRAPH_LIB@ $LLVM_FLAGS
+  $COMPILER $CLI_LINKER_FLAGS -flto=thin -fuse-ld=lld -fpass-plugin=$PASS "$@" -lstdc++ -L@METACG_INSTALL_DIR@/lib64 -lmetacg -Wl,-whole-archive $RUNTIME -Wl,-no-whole-archive -Wl,--rpath,@GRAPH_LIB@ $LLVM_FLAGS
 else
   echo "[Wrapper] Linking is disabled"
-  $COMPILER $CLI_FLAGS -fpass-plugin=$PASS "$@"
+  $COMPILER $CLI_FLAGS -fpass-plugin=$PASS  "$@"
 fi
