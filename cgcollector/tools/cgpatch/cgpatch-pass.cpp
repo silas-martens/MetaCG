@@ -31,8 +31,10 @@ static cl::opt<bool> filterVirtualCalls("filter-virtual-calls", cl::desc("Filter
 namespace {
 
 enum CallType {
-  Direct, Virtual, Indirect, Unknown
+  Direct, DirectAlias, Virtual, Indirect, Unknown
 };
+
+bool isDirect(CallType CT) { return CT == Direct || CT == DirectAlias; }
 
 void insertMetaCGCall(Instruction& ins, Function& f, Value* calledOperand, Function* runtimeFunction);
 bool isVirtualCall(const CallBase& CB);
@@ -69,7 +71,7 @@ void instrumentIndirectCalls(Module& M) {
 
 
         auto calledFunction = CB->getCalledFunction();
-        if (CT == CallType::Direct) {  // Direct call
+        if (isDirect(CT)) {  // Direct call
           // Instrument constructors & destructors if option is enabled
           if (instrumentCtorsDtors) {
             // Setup demangler's internal state to work on the called function name
@@ -124,6 +126,13 @@ CallType detectCallType(CallBase* Call) {
   }
 
   Value *FuncPtr = Call->getCalledOperand();
+
+  // Check for alias
+  if (auto *Alias = dyn_cast<GlobalAlias>(FuncPtr)) {
+    if (auto *AF = dyn_cast<Function>(Alias->getAliasee())) {
+      return DirectAlias;
+    }
+  }
 
   LoadInst *FuncLoad = dyn_cast<LoadInst>(FuncPtr);
   if (!FuncLoad) {
