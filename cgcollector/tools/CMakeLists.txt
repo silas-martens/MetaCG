@@ -4,6 +4,9 @@ set(TARGETS_EXPORT_NAME ${PROJECT_NAME}-target)
 add_executable(cgcollector CGCollector.cpp)
 add_executable(cgmerge CGMerge.cpp)
 add_executable(cgvalidate CGValidate.cpp)
+add_executable(cgutils CGUtils.cpp)
+
+
 
 # register_to_clang_tidy(cgcollector)
 add_collector_include(cgcollector)
@@ -25,6 +28,10 @@ add_json(cgvalidate)
 add_cxxopts(cgvalidate)
 add_clang(cgvalidate)
 
+add_json(cgutils)
+add_cxxopts(cgutils)
+add_metacg(cgutils)
+add_spdlog_libraries(cgutils)
 if(LOGLEVEL)
   target_compile_definitions(cgvalidate PRIVATE LOGLEVEL=${LOGLEVEL})
 endif()
@@ -33,6 +40,7 @@ install(
   TARGETS cgcollector
           cgmerge
           cgvalidate
+          cgutils
   EXPORT ${TARGETS_EXPORT_NAME}
   RUNTIME DESTINATION bin
 )
