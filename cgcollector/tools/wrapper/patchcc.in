@@ -92,10 +92,9 @@ shift
 
 if [[ "$linking" == yes ]]
 then
-  #echo "[Wrapper] Linking is enabled"
-  #echo "[Wrapper] Executing: $COMPILER $CLI_FLAGS $CLI_FLAGS_LINK $@ -lstdc++ -L@METACG_INSTALL_DIR@/lib64 -lmetacg -Wl,-whole-archive $RUNTIME -Wl,-no-whole-archive -Wl,--rpath,@GRAPH_LIB@ $LLVM_FLAGS"
+  echo "[Wrapper] Linking: $COMPILER $CLI_FLAGS $CLI_FLAGS_LINK $@ -lstdc++ -L@METACG_INSTALL_DIR@/lib64 -lmetacg -Wl,-whole-archive $RUNTIME -Wl,-no-whole-archive -Wl,--rpath,@GRAPH_LIB@ $LLVM_FLAGS"
   $COMPILER $CLI_FLAGS $CLI_FLAGS_LINK "$@" -lstdc++ -L@METACG_INSTALL_DIR@/lib64 -lmetacg -Wl,-whole-archive $RUNTIME -Wl,-no-whole-archive -Wl,--rpath,@GRAPH_LIB@ $LLVM_FLAGS
 else
-  #echo "[Wrapper] Linking is disabled"
+  echo "[Wrapper] Compiling: $COMPILER $CLI_FLAGS $@"
   $COMPILER $CLI_FLAGS "$@"
 fi
