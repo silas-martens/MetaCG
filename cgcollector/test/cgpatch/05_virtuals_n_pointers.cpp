@@ -27,8 +27,4 @@ void caller() {
 // CHECK: call void @__metacg_indirect_call(
 // CHECK: call noundef i32 %{{[0-9]+}}(
 
-// CHECK: define dso_local noundef i32 @_Z9forwarderPvi(
-// CHECK: call void @__metacg_indirect_call(
-// CHECK: call noundef i32 %{{[0-9]+}}(
-
 // CHECK: declare void @__metacg_indirect_call(

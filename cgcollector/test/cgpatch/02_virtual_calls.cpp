@@ -31,12 +31,6 @@ void caller() {
   delete b_pointer;
 }
 
-// CHECK: define dso_local void @_Z6callerv(
-// CHECK: call void @__metacg_indirect_call
-// CHECK: call noundef i32 %{{[0-9]+}}(
-
-// CHECK: call void @__metacg_indirect_call
-// CHECK: call noundef i32 %{{[0-9]+}}(
-// CHECK: call noundef i32 @_ZN1A3fooEv(
+// CHECK-NOT: call void @__metacg_indirect_call
 
 // CHECK: declare void @__metacg_indirect_call(

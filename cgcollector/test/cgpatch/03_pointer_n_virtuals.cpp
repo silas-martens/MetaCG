@@ -20,10 +20,6 @@ void caller() {
   int x = a_pointer->foo_with_arg(bar_with_arg, 4);
 }
 
-// CHECK: define dso_local void @_Z6callerv(
-// CHECK: call void @__metacg_indirect_call(
-// CHECK: call noundef i32 %{{[0-9]+}}(
-
 // CHECK: define linkonce_odr dso_local noundef i32 @_ZN1B12foo_with_argEPFiiEi(
 // CHECK: call void @__metacg_indirect_call(
 // CHECK: call noundef i32 %

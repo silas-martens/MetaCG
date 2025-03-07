@@ -129,7 +129,7 @@ add_lit_testsuite(
   PARAMS
   site_config=${CMAKE_CURRENT_BINARY_DIR}/lit.site.cfg
   DEPENDS
-  cgpatch-pass
+  cgpatch-inst-pass cgpatch-pta-pass
 )
 
 add_test(NAME ctest_cgpatch_suite COMMAND ${LIT_EXE} -j 1 --param site_config=${CMAKE_CURRENT_BINARY_DIR}/lit.site.cfg

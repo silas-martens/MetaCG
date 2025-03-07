@@ -2,7 +2,8 @@
 
 
 LLVM_FLAGS=`llvm-config --cflags --ldflags --libs --system-libs`
-PASS=@METACG_INSTALL_DIR@/lib/libcgpatch-pass.so
+INST_PASS=@METACG_INSTALL_DIR@/lib/libcgpatch-inst-pass.so
+PTA_PASS=@METACG_INSTALL_DIR@/lib/libcgpatch-pta-pass.so
 RUNTIME=@METACG_INSTALL_DIR@/lib64/libcgpatch-runtime.a
 
 # Check if linking is enabled
@@ -15,30 +16,75 @@ for arg in "$@" ; do
     esac
 done
 
-CLI_FLAGS="-Xclang -load -Xclang $PASS"
+INST_FLAGS=" -Xclang -load -Xclang $INST_PASS -fpass-plugin=$INST_PASS"
+INST_FLAGS_LINK=""
+
+PTA_FLAGS=""
+PTA_FLAGS_LINK=" -Wl,--load-pass-plugin=$PTA_PASS -Wl,-mllvm=-load=$PTA_PASS"
+
+require_full_lto=0
+add_inst_pass=1 # enabled by default
+add_pta_pass=0
+patch_file="static_patch.mcg"
 
 ARGS=()
 #Command option
-for arg in "$@" ; do
-    case $arg in
+while [[ $# -gt 0 ]]; do
+    case $1 in
         -shared | --shared)
             echo "shared libraries are not supported"
             exit 1
             ;;
         --instrument-ctors-dtors | -instrument-ctors-dtors)
-            CLI_FLAGS+=" -mllvm -instrument-ctors-dtors"
+            INST_FLAGS+=" -mllvm -instrument-ctors-dtors"
             ;;
-        --filter-virtual-calls | -filter-virtual-calls)
-           # CLI_FLAGS+=" -mllvm -filter-virtual-calls -fwhole-program-vtables -fuse-ld=lld"
-            CLI_LINKER_FLAGS=" -mllvm -filter-virtual-calls -fwhole-program-vtables"
+        --points-to-analysis | -points-to-analysis | --pta | -pta)
+            add_pta_pass=1
+            require_full_lto=1
+            ;;
+        --patch-file | -patch-file)
+            echo $2
+            if [[ -n "$2" && "$2" != -* ]]; then
+                patch_file="$2"
+                shift  # Skip the argument
+            else
+                echo "Error: --patch-file requires a filename"
+                exit 1
+            fi
+            ;;
+        --verbose)
+            INST_FLAGS+=" -mllvm -cgpatch-verbose"
+            PTA_FLAGS_LINK+=" -Wl,-mllvm=-cgpatch-verbose"
             ;;
         *)
-            ARGS+=("$arg")
+            ARGS+=("$1")
             ;;
     esac
+    shift
 done
 
 set -- "${ARGS[@]}"  #  resets the positional parameters ($@) with the values stored in ARGS.
+
+PTA_FLAGS_LINK+=" -Wl,-mllvm=-cgpatch-outfile=${patch_file}"
+
+CLI_FLAGS=" -fwhole-program-vtables"
+CLI_FLAGS_LINK=" -fuse-ld=lld"
+
+if [[ "$require_full_lto" == 1 ]]; then
+  CLI_FLAGS+=" -flto=full"
+else
+  CLI_FLAGS+=" -flto=thin"
+fi
+
+if [[ "$add_inst_pass" == 1 ]]; then
+  CLI_FLAGS+=" $INST_FLAGS"
+  CLI_FLAGS_LINK+=" $INST_FLAGS_LINK"
+fi
+
+if [[ "$add_pta_pass" == 1 ]]; then
+  CLI_FLAGS+=" $PTA_FLAGS"
+  CLI_FLAGS_LINK+=" $PTA_FLAGS_LINK"
+fi
 
 # set first argument as compiler
 COMPILER=$1;
@@ -46,9 +92,10 @@ shift
 
 if [[ "$linking" == yes ]]
 then
-  echo "[Wrapper] Linking is enabled"
-  $COMPILER $CLI_LINKER_FLAGS -flto=thin -fuse-ld=lld -fpass-plugin=$PASS "$@" -lstdc++ -L@METACG_INSTALL_DIR@/lib64 -lmetacg -Wl,-whole-archive $RUNTIME -Wl,-no-whole-archive -Wl,--rpath,@GRAPH_LIB@ $LLVM_FLAGS
+  #echo "[Wrapper] Linking is enabled"
+  #echo "[Wrapper] Executing: $COMPILER $CLI_FLAGS $CLI_FLAGS_LINK $@ -lstdc++ -L@METACG_INSTALL_DIR@/lib64 -lmetacg -Wl,-whole-archive $RUNTIME -Wl,-no-whole-archive -Wl,--rpath,@GRAPH_LIB@ $LLVM_FLAGS"
+  $COMPILER $CLI_FLAGS $CLI_FLAGS_LINK "$@" -lstdc++ -L@METACG_INSTALL_DIR@/lib64 -lmetacg -Wl,-whole-archive $RUNTIME -Wl,-no-whole-archive -Wl,--rpath,@GRAPH_LIB@ $LLVM_FLAGS
 else
-  echo "[Wrapper] Linking is disabled"
-  $COMPILER $CLI_FLAGS -fpass-plugin=$PASS  "$@"
+  #echo "[Wrapper] Linking is disabled"
+  $COMPILER $CLI_FLAGS "$@"
 fi
