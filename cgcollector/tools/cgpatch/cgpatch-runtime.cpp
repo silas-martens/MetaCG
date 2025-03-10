@@ -16,6 +16,8 @@
 #endif
 // applications do not require mpi.
 #include <fstream>
+#include <unordered_map>
+#include <unordered_set>
 
 using namespace SymbolRetriever;
 namespace {
@@ -79,6 +81,16 @@ struct ValidatorInitializer {
 }  // namespace
 
 extern "C" void __metacg_indirect_call(const char* name, void* address) {
+  static std::unordered_map<const char*, std::unordered_set<void*>> visitedMap;
+
+  auto& knownCalls = visitedMap[name];
+  if (knownCalls.find(address) != knownCalls.end()) {
+    // We have seen this edge before
+    return;
+  }
+  knownCalls.insert(address);
+
+
   //static ValidatorInitializer validator_init;
   initializeGlobalCallgraph();
   // resolve name
