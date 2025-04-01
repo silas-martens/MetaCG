@@ -3,7 +3,7 @@
 ## TODO: seperate ldflags and cxx flags
 LLVM_FLAGS=`llvm-config --cxxflags --ldflags --libs --system-libs`
 INST_PASS=@METACG_INSTALL_DIR@/lib/libcgpatch-inst-pass.so
-RUNTIME=@METACG_INSTALL_DIR@/lib64/libcgpatch-runtime.a
+RUNTIME=@METACG_INSTALL_DIR@/lib/libcgpatch-runtime.a
 
 # Check if linking is enabled
 linking=yes
@@ -21,7 +21,6 @@ INST_FLAGS_LINK=""
 require_full_lto=0
 add_inst_pass=1 # enabled by default
 
-patch_file="static_patch.mcg"
 
 ARGS=()
 #Command option
@@ -39,9 +38,10 @@ while [[ $# -gt 0 ]]; do
             CLI_FLAGS_LINK+=" -Wl,-mllvm=-cgpatch-verbose"
             ;;
         *)
-            ARGS+=("$arg")
+            ARGS+=("$1")
             ;;
     esac
+    shift
 done
 
 set -- "${ARGS[@]}"  #  resets the positional parameters ($@) with the values stored in ARGS.
@@ -67,10 +67,10 @@ shift
 
 if [[ "$linking" == yes ]]
 then
-  #echo "[patchcxx] Linking"
-  #echo "[patchcxx] Executing: $COMPILER $CLI_FLAGS $CLI_FLAGS_LINK $@ -L@METACG_INSTALL_DIR@/lib64 -lmetacg -Wl,-whole-archive $RUNTIME -Wl,-no-whole-archive -Wl,--rpath,@GRAPH_LIB@ $LLVM_FLAGS"
-  $COMPILER $CLI_FLAGS $CLI_FLAGS_LINK "$@" -L@METACG_INSTALL_DIR@/lib64 -lmetacg -Wl,-whole-archive $RUNTIME -Wl,-no-whole-archive -Wl,--rpath,@GRAPH_LIB@ $LLVM_FLAGS
+  echo "[patchcxx] Linking"
+  echo "[patchcxx] Executing: $COMPILER $CLI_FLAGS $CLI_FLAGS_LINK $@ -L@METACG_INSTALL_DIR@/lib64 -lmetacg -Wl,-whole-archive $RUNTIME -Wl,-no-whole-archive -Wl,--rpath,@GRAPH_LIB@ $LLVM_FLAGS"
+  $COMPILER $CLI_FLAGS $CLI_FLAGS_LINK "$@" -L@METACG_INSTALL_DIR@/lib -lmetacg -Wl,-whole-archive $RUNTIME -Wl,-no-whole-archive -Wl,--rpath,@GRAPH_LIB@ $LLVM_FLAGS
 else
-  #echo "[patchcxx] Compiling"
+  echo "[patchcxx] Compiling"
   $COMPILER $CLI_FLAGS "$@"
 fi

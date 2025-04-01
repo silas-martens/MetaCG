@@ -13,6 +13,9 @@ option(
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 
+add_library(cgpatch-call-analysis STATIC CallAnalysis.cpp)
+target_link_libraries(cgpatch-call-analysis PUBLIC ${llvm_libs})
+
 # Create Libraries
 add_library(cgpatch-inst-pass SHARED cgpatch-inst-pass.cpp)
 add_library(cgpatch-runtime STATIC cgpatch-runtime.cpp SymbolRetriever/SymbolRetriever.cpp)
