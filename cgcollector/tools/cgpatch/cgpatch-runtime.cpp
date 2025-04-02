@@ -11,18 +11,22 @@
 #include "nlohmann/json.hpp"
 #include <cstdlib>
 #include <iostream>
+
+
 #if USE_MPI == 1
 #include <mpi.h>
 #endif
 // applications do not require mpi.
 #include <fstream>
+#include <llvm/Support/JSON.h>
 #include <unordered_map>
 #include <unordered_set>
 
 using namespace SymbolRetriever;
 namespace {
 // Variables
-std::unique_ptr<metacg::Callgraph> globalCallgraph;
+
+metacg::Callgraph* globalCallgraph;
 MappedSymTableMap symTables;
 bool shouldWrite = true;
 int counter;
@@ -32,8 +36,12 @@ spdlog::logger* console;
 spdlog::logger* errConsole;
 
 void initializeGlobalCallgraph() {
-  if (!globalCallgraph) {
-    globalCallgraph = std::make_unique<metacg::Callgraph>();
+  if (metacg::graph::MCGManager& mcgManager = metacg::graph::MCGManager::get(); mcgManager.getAllManagedGraphNames().empty()) {
+    globalCallgraph = mcgManager.getOrCreateCallgraph("globalCallGraph", true);
+    if (!globalCallgraph) {
+      errConsole->error("globalCallgraph is not initialized.");
+      return;
+    }
     console = metacg::MCGLogger::instance().getConsole();
     errConsole = metacg::MCGLogger::instance().getErrConsole();
     counter = 0;
@@ -42,10 +50,11 @@ void initializeGlobalCallgraph() {
 
 void finalizeGlobalCallgraph() {
   // Write Callgraph to file
+  metacg::graph::MCGManager& mcgManager = metacg::graph::MCGManager::get();
   if (shouldWrite) {
     metacg::io::VersionTwoMCGWriter mcgWriter;
     metacg::io::JsonSink jsonSink;
-    mcgWriter.write(globalCallgraph.get(), jsonSink);
+    mcgWriter.write(mcgManager.getCallgraph(), jsonSink);
     nlohmann::json j = jsonSink.getJson();
 
     const char* filename = std::getenv("CGPATCH_CG_NAME");
@@ -82,7 +91,10 @@ struct ValidatorInitializer {
 
 extern "C" void __metacg_indirect_call(const char* name, void* address) {
   static std::unordered_map<const char*, std::unordered_set<void*>> visitedMap;
-
+  if (!globalCallgraph) {
+    errConsole->error("globalCallgraph is not initialized.");
+    return;
+  }
   auto& knownCalls = visitedMap[name];
   if (knownCalls.find(address) != knownCalls.end()) {
     // We have seen this edge before
@@ -90,9 +102,9 @@ extern "C" void __metacg_indirect_call(const char* name, void* address) {
   }
   knownCalls.insert(address);
 
-
   //static ValidatorInitializer validator_init;
   initializeGlobalCallgraph();
+
   // resolve name
   if (symTables.empty()) {  // Loads symTables if symTables is not initialized yet. This potentially runs before the
                             // static constructor
@@ -108,8 +120,8 @@ extern "C" void __metacg_indirect_call(const char* name, void* address) {
   //std::cout << "Added an edge from " << name << " to " << symbol << "\n";
    // Add new edge if edge does not exist yet
   if (!globalCallgraph->existEdgeFromTo(name, symbol)) {
-    auto caller = globalCallgraph->getOrInsertNode(name);
-    auto callee = globalCallgraph->getOrInsertNode(symbol);
+    const auto caller = globalCallgraph->getOrInsertNode(name);
+    const auto callee = globalCallgraph->getOrInsertNode(symbol);
 
     globalCallgraph->addEdge(caller, callee);
     counter++;
@@ -130,92 +142,80 @@ extern "C" int MPI_Abort(void*, int) __attribute__((weak));
 */
 
 extern "C" int MPI_Finalize(void) {
+  metacg::graph::MCGManager& mcgManager = metacg::graph::MCGManager::get();
+
   int rank, size;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-  // serialize call-graph
-  metacg::io::VersionTwoMCGWriter mcgWriter;
-  metacg::io::JsonSink jsonSink;
-  mcgWriter.write(globalCallgraph.get(), jsonSink);
-  nlohmann::json j = jsonSink.getJson();
-
-  std::string filename = "validateGraph_" + std::to_string(rank) + ".json";
-  std::ofstream ofs(filename);
-  if (ofs.is_open()) {
-    ofs << j;
-    ofs.close();
-  } else {
-    errConsole->error("Unable to open file {} for writing.", filename);
-  }
-
-  MPI_Barrier(MPI_COMM_WORLD);  // Wait to ensure that all MPI ranks have finished writing
-
-  if (rank == 0) {
-    std::string mergedFilename = "mergedCallGraph.json";
-    std::string mergeCommand = "cgmerge " + mergedFilename;
-
-    // Generating merge command
-    for (int i = 0; i < size; ++i) {
-      mergeCommand += " validateGraph_" + std::to_string(i) + ".json";
-    }
-
-    // Create null file
-    {
-      std::ofstream ofs(mergedFilename, std::ios::trunc);
-
-      if (!ofs.is_open()) {
-        errConsole->error("Unable to open file {} for writing", mergedFilename);
-        return -1;
-      }
-      ofs << "null";
-    }
-
-    // Run merge command
-    FILE* output = popen(mergeCommand.c_str(), "r");
-    if (!output) {
-      errConsole->error("Failed to execute cgmerge command.");
-      MPI_Abort(MPI_COMM_WORLD, 1);  // Abort if cgmerge fails to execute
-    }
-
-    // Write the cgmerge output to std::cout
-    char buffer[256];
-    while (fgets(buffer, sizeof(buffer), output) != nullptr) {
-      std::cout << buffer;
-    }
-    pclose(output);
-
-  } else {
+  if (rank != 0) {
     shouldWrite = false;
+    // serialize call-graph
+    metacg::io::VersionTwoMCGWriter mcgWriter;
+    metacg::io::JsonSink jsonSink;
+    mcgWriter.write(globalCallgraph, jsonSink);
+    nlohmann::json j = jsonSink.getJson();
+
+    // Send all call-graphs to rank 0
+    std::string json_str = j.dump();
+    MPI_Send(json_str.data(), json_str.size() , MPI_CHAR, 0, 0, MPI_COMM_WORLD);
   }
+  else if (rank == 0) {
+    shouldWrite = true;
+    MPI_Status status;
+    int msg_size;
 
-  MPI_Barrier(MPI_COMM_WORLD);
+    for (int i = 1; i < size; i++) {
+      // Probe for incoming message
+      MPI_Probe(i, 0, MPI_COMM_WORLD, &status);
 
-  // Delete temporary call-graphs
-  //if (std::remove(filename.c_str()) != 0) {
-  //  errConsole->error("Rank {} failed to delete its temporary file: {}", rank, filename);
-  //}
+      // Get size of incoming message
+      MPI_Get_count(&status, MPI_CHAR, &msg_size);
+      console->info("Received message of size {} from {}.", msg_size, i);
+      // Allocate buffer & receive message
+      std::vector<char> buffer(msg_size);
+      MPI_Recv(buffer.data(), msg_size, MPI_CHAR, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      console->info("Received message.");
 
-  int PMPI_FINALIZE_STATUS = PMPI_Finalize();  // Finalize MPI environment
+      // Deserialize call-graph and add to mcgManager
+      try
+      {
+      	std::string json_str(buffer.begin(), buffer.end());
+      	nlohmann::json j = nlohmann::json::parse(json_str);
+      	metacg::io::JsonSource jsonSource(j);
+      	metacg::io::VersionTwoMetaCGReader mcgReader(jsonSource);
+	  }
+      catch (const std::exception& e)
+      {
+      	errConsole->error("Could not deserialize call-graph from rank {}.", rank);
+	  }
 
-  // Read merged call-graph
-  if (shouldWrite) {
-    {
-      std::ifstream infile("mergedCallGraph.json");
-      if (!infile.is_open()) {
-        console->info("Could not open mergedCallGraph.json.");
-      }
+      	metacg::io::VersionTwoMCGWriter mcgWriter;
+    	metacg::io::JsonSink jsonSink;
+    	mcgWriter.write(globalCallgraph, jsonSink);
+   	 	nlohmann::json j = jsonSink.getJson();
 
-      nlohmann::json jsonFile;
-      infile >> jsonFile;
+      	{
+      	std::ofstream outfile("globalCallGraph.json");
+      	if (!outfile.is_open()) {
+        	std::cout << "[Error] Could not open mergedCallGraph.json.\n";
+     	}
+		errConsole->info("Merging call-graph!");
+		mcgManager.addToManagedGraphs(std::to_string(i), std::move(mcgReader.read()), false);
+    	}
 
-      metacg::io::JsonSource jsonSource(jsonFile);
-      metacg::io::VersionTwoMetaCGReader mcgReader(jsonSource);
-      globalCallgraph = mcgReader.read();
+      	{
+    	std::ofstream outfile("globalCallGraph.json");
+      	if (!outfile.is_open()) {
+        	std::cout << "[Error] Could not open mergedCallGraph.json.\n";
+     	}
+      	errConsole->info("Merging call-graph!");
+		mcgManager.addToManagedGraphs(std::to_string(i), std::move(mcgReader.read()), false);
+		}
     }
-    //std::remove("mergedCallGraph.json");
+    mcgManager.mergeIntoActiveGraph();
   }
-  return PMPI_FINALIZE_STATUS;
+  return PMPI_Finalize();
 }
 
 #endif
