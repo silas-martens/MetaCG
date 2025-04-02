@@ -27,7 +27,6 @@ if(CGPATCH_USE_MPI)
   target_compile_definitions(cgpatch-runtime PRIVATE USE_MPI=1)
 endif()
 
-
 add_metacg(cgpatch-runtime)
 add_spdlog_libraries(cgpatch-runtime)
 add_json(cgpatch-runtime)
@@ -36,10 +35,4 @@ add_metacg(cgpatch-inst-pass)
 add_spdlog_libraries(cgpatch-inst-pass)
 add_json(cgpatch-inst-pass)
 
-
-
-install(TARGETS 
-      cgpatch-inst-pass
-      cgpatch-runtime
-      LIBRARY DESTINATION lib
-)
+install(TARGETS cgpatch-inst-pass cgpatch-runtime LIBRARY DESTINATION lib)

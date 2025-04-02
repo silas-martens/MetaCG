@@ -43,10 +43,15 @@ endfunction()
 configure_script(patchcc.in patchcc)
 configure_script(patchcxx.in patchcxx)
 
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/patchcc" "${CMAKE_CURRENT_BINARY_DIR}/patchcxx"
+install(
+  FILES "${CMAKE_CURRENT_BINARY_DIR}/patchcc" "${CMAKE_CURRENT_BINARY_DIR}/patchcxx"
   DESTINATION bin
-  PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE
-              GROUP_READ GROUP_EXECUTE
-              WORLD_READ WORLD_EXECUTE
+  PERMISSIONS
+    OWNER_READ
+    OWNER_WRITE
+    OWNER_EXECUTE
+    GROUP_READ
+    GROUP_EXECUTE
+    WORLD_READ
+    WORLD_EXECUTE
 )
-

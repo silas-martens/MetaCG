@@ -6,8 +6,6 @@ add_executable(cgmerge CGMerge.cpp)
 add_executable(cgvalidate CGValidate.cpp)
 add_executable(cgutils CGUtils.cpp)
 
-
-
 # register_to_clang_tidy(cgcollector)
 add_collector_include(cgcollector)
 add_collector_lib(cgcollector)
