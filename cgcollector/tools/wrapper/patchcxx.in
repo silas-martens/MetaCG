@@ -1,5 +1,8 @@
 #!/bin/bash
 
+export HOME=/home/silasm
+export OMPI_CXX=clang++
+
 ## TODO: seperate ldflags and cxx flags
 LLVM_FLAGS=`llvm-config --cxxflags --ldflags --libs --system-libs`
 INST_PASS=@METACG_INSTALL_DIR@/lib/libcgpatch-inst-pass.so
@@ -34,8 +37,8 @@ while [[ $# -gt 0 ]]; do
             INST_FLAGS+=" -mllvm -instrument-ctors-dtors"
             ;;
         --verbose)
-            CLI_FLAGS+=" -mllvm -cgpatch-verbose"
-            CLI_FLAGS_LINK+=" -Wl,-mllvm=-cgpatch-verbose"
+            INST_FLAGS+=" -mllvm -cgpatch-verbose"
+            INST_LINK_FLAGS+=" -Wl,-mllvm=-cgpatch-verbose"
             ;;
         *)
             ARGS+=("$1")
