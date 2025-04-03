@@ -38,6 +38,7 @@ void insertMetaCGCall(Instruction& ins, Function& f, Value* calledOperand, Funct
 
     // Instrumentation
 void instrumentIndirectCalls(Module& M) {
+  outs() << "verbose is" << verbose <<  "and instrument ctors dtors is " << instrumentCtorsDtors << "\n";
   ItaniumPartialDemangler demangler;
   nlohmann::json j;
 
@@ -51,7 +52,7 @@ void instrumentIndirectCalls(Module& M) {
   Function* runtimeFunction = cast<Function>(M.getOrInsertFunction("__metacg_indirect_call", functionType).getCallee());
 
   for (Function& F : M) {
-
+      if(verbose) { outs() <<"Traversing function: " << F.getName() << "\n"; }
     for(BasicBlock& B : F)
       for(Instruction& Ins : B) {
 
@@ -60,6 +61,29 @@ void instrumentIndirectCalls(Module& M) {
         auto* CB = dyn_cast<CallBase>(&Ins);
         auto CT = detectCallType(CB);
 
+        if (verbose) { // Only print if verbose is true
+          if (CB) { 
+            switch (CT) {
+              case Virtual:
+                  llvm::outs() << "Virtual call identified: " << *CB << "\n";
+                  break;
+              case Indirect:
+                  llvm::outs() << "Call is other indirect call: " << *CB << "\n";
+                  break;
+              case Direct:
+                  llvm::outs() << "Call is direct call: " << *CB << "\n";
+                  break;
+              case DirectAlias:
+                  llvm::outs() << "Call is direct call via a function alias: " << *CB << "\n";
+                  break;
+              case Unknown:
+                  llvm::outs() << "Call type is unknown: " << *CB << "\n";
+                  break;
+              default:
+                  break;
+            }
+          }
+        }
         if(CT == CallType::Unknown)
           continue;
 
@@ -84,13 +108,15 @@ void instrumentIndirectCalls(Module& M) {
         }
       }
   }
-  llvm::outs() << "[Info] Instrumented " << (indirectCallCount + ctorDtorCallCount) << " function calls in "
-               << M.getName().str() << ":\n"
-               << "\t" << indirectCallCount << ": "
-               << "Indirect functions.\n"
-               << "\t" << ctorDtorCallCount << ": "
-               << "constructors and destructors."
-               << "\n";
+  if(verbose) {
+    llvm::outs() << "[Info] Instrumented " << (indirectCallCount + ctorDtorCallCount) << " function calls in "
+                 << M.getName().str() << ":\n"
+                 << "\t" << indirectCallCount << ": "
+                 << "Indirect functions.\n"
+                 << "\t" << ctorDtorCallCount << ": "
+                 << "constructors and destructors."
+                 << "\n";
+  }
 }
 
 // Insert call to __metacg_indirect_call before the current instruction
