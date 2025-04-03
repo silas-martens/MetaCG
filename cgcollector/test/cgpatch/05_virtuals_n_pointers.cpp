@@ -1,4 +1,4 @@
-// RUN: %metacc clang++ %s -emit-llvm -S -o - | %filecheck %s
+// RUN: %cgpatchcxx clang++ %s -emit-llvm -S -o - | %filecheck %s
 #include <stdio.h>
 
 int bar_with_arg(int (*fptr)(void*, int), void* context) { return fptr(context, 16); }

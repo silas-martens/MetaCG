@@ -1,4 +1,4 @@
-// RUN:  %metacc clang++ %s -emit-llvm -S -o - | %filecheck %s
+// RUN:  %cgpatchcxx clang++ %s -emit-llvm -S -o - | %filecheck %s
 
 #include <cstdio>
 

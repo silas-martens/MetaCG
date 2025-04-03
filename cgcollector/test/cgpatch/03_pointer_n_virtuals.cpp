@@ -1,4 +1,4 @@
-// RUN: %metacc clang++ %s -emit-llvm -S -o - | %filecheck %s
+// RUN: %cgpatchcxx clang++ %s -emit-llvm -S -o - | %filecheck %s
 
 int bar_with_arg(int x) { return x * x; }
 

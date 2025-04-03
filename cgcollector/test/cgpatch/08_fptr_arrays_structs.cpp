@@ -1,4 +1,4 @@
-// RUN:  %metacc clang++ %s -emit-llvm -S -o - | %filecheck %s
+// RUN:  %cgpatchcxx clang++ %s -emit-llvm -S -o - | %filecheck %s
 
 #include <stdio.h>
 void foo(void) { printf("foo\n"); }

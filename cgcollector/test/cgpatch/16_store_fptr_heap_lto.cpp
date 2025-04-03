@@ -1,4 +1,4 @@
-// RUN: %metacc --points-to-analysis --patch-file /dev/null  --verbose clang++ %s -o %s.o | %filecheck %s
+// RUN: %cgpatchcxx --points-to-analysis --patch-file /dev/null  --verbose clang++ %s -o %s.o | %filecheck %s
 // XFAIL: *
 // Expected to fail, because heap loads/stores are not correctly tracked by the PTA.
 

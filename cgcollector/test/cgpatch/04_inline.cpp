@@ -1,4 +1,4 @@
-// RUN: %metacc clang++ %s -emit-llvm -S -o - | %filecheck %s
+// RUN: %cgpatchcxx clang++ %s -emit-llvm -S -o - | %filecheck %s
 
 inline int inlined_add(int x, int y) { return x + y; }
 
