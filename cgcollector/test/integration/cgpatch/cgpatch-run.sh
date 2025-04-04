@@ -33,7 +33,7 @@ logFile=$logDir/cgpatch-${CI_CONCURRENT_ID}.log
 inputDir=$PWD/input
 buildDir=$PWD/../../../../${build_dir}/
 cgpatchExe=$buildDir/cgcollector/tools/wrapper/patchcxx
-testerExe=$buildDir/cgcollector/test/cgsimpletester
+testerExe=$buildDir/cgcollector/test/cgtester
 
 # clean up
 if [ ! -d ${logDir} ]; then
