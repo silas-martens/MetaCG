@@ -71,7 +71,7 @@ shift
 if [[ "$linking" == yes ]]
 then
   echo "[patchcxx] Linking"
-  echo "[patchcxx] Executing: $COMPILER $CLI_FLAGS $CLI_FLAGS_LINK $@ -L@METACG_INSTALL_DIR@/lib64 -lmetacg -Wl,-whole-archive $RUNTIME -Wl,-no-whole-archive -Wl,--rpath,@GRAPH_LIB@ $LLVM_FLAGS"
+  #echo "[patchcxx] Executing: $COMPILER $CLI_FLAGS $CLI_FLAGS_LINK $@ -L@METACG_INSTALL_DIR@/lib64 -lmetacg -Wl,-whole-archive $RUNTIME -Wl,-no-whole-archive -Wl,--rpath,@GRAPH_LIB@ $LLVM_FLAGS"
   $COMPILER $CLI_FLAGS $CLI_FLAGS_LINK "$@" -L@METACG_INSTALL_DIR@/lib -lmetacg -Wl,-whole-archive $RUNTIME -Wl,-no-whole-archive -Wl,--rpath,@GRAPH_LIB@ $LLVM_FLAGS
 else
   echo "[patchcxx] Compiling"
