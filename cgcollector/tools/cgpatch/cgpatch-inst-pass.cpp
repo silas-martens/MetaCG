@@ -38,7 +38,6 @@ void insertMetaCGCall(Instruction& ins, Function& f, Value* calledOperand, Funct
 
     // Instrumentation
 void instrumentIndirectCalls(Module& M) {
-  outs() << "verbose is" << verbose <<  "and instrument ctors dtors is " << instrumentCtorsDtors << "\n";
   ItaniumPartialDemangler demangler;
   nlohmann::json j;
 
