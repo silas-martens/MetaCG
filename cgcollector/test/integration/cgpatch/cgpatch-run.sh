@@ -43,10 +43,10 @@ echo "" > ${logFile}
 
 # check if cgpatch wrapper is available
 if ! type $executable > /dev/null; then
-	echo "failed"
+	echo "Cannot find $executable"
 	exit
 else
-	echo "passed"
+	echo "Found $executable"
 	testNo=$(($testNo+1))
 fi
 
@@ -60,9 +60,8 @@ for testcase in $testcases; do
 	testExe="${testName}.out"
 	export CGPATCH_CG_NAME="${testPG}"
 	
-	echo "Running testcase $testName..."
+	echo "Running testcase $testName."
 	
-	echo "Generating patch-graph..."
 	# Generate patch-graph
 	# FIX: remove -stdlib=libstdc++
 	$cgpatchExe mpicxx $testcase -stdlib=libstdc++ -o "${testName}.out" # Compile testcase
@@ -71,8 +70,8 @@ for testcase in $testcases; do
 	$testerExe $testPG $testGT >> $logFile # Evaluate testcase
 
 	if [ $? -ne 0 ]; then
-		 echo "Failure for file: $testPG. Keeping generated file for inspection"
-		 pretty $testPG
+		echo "Failure for file: $testPG. Keeping generated file for inspection"
+		pretty $testPG
 		fails=$((fails + 1))
 	else
 		rm $testExe

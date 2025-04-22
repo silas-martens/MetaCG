@@ -1,6 +1,6 @@
 #include <iostream>
 #include <vector>
-
+// A LULESH inspired testcase.
 class DataDomain {
 public:
     std::vector<double> fieldA;
