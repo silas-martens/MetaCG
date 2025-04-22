@@ -61,27 +61,7 @@ void instrumentIndirectCalls(Module& M) {
         auto CT = detectCallType(CB);
 
         if (verbose) { // Only print if verbose is true
-          if (CB) { 
-            switch (CT) {
-              case Virtual:
-                  llvm::outs() << "Virtual call identified: " << *CB << "\n";
-                  break;
-              case Indirect:
-                  llvm::outs() << "Call is other indirect call: " << *CB << "\n";
-                  break;
-              case Direct:
-                  llvm::outs() << "Call is direct call: " << *CB << "\n";
-                  break;
-              case DirectAlias:
-                  llvm::outs() << "Call is direct call via a function alias: " << *CB << "\n";
-                  break;
-              case Unknown:
-                  llvm::outs() << "Call type is unknown: " << *CB << "\n";
-                  break;
-              default:
-                  break;
-            }
-          }
+          printCallTypeInfo(CT, CB);
         }
         if(CT == CallType::Unknown)
           continue;

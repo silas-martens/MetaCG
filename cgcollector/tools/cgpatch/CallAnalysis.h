@@ -24,6 +24,7 @@ CallType detectCallType(llvm::CallBase* Call);
 
 llvm::Value* getTypeTestMetadata(llvm::Value* V);
 
+void printCallTypeInfo(CallType CT, llvm::CallBase* CB);
 }
 
 #endif  // META_CG_CG_PATCH_CALLANALYSIS_H
