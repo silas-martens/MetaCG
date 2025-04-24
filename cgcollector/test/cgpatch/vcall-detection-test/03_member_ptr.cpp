@@ -1,4 +1,4 @@
-// RUN: %cgpatchcxx --verbose mpicxx %s %cppargs -stdlib=libstdc++ -emit-llvm -S | FileCheck %s
+// RUN: %cgpatchcxx --verbose mpicxx %s %cppargs -emit-llvm -S | FileCheck %s
 
 #include <iostream>
 
