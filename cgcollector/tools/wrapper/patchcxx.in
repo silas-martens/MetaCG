@@ -1,9 +1,5 @@
 #!/bin/bash
 
-export HOME=/home/silasm
-export OMPI_CXX=clang++
-
-## TODO: seperate ldflags and cxx flags
 LLVM_FLAGS=`llvm-config --cxxflags --ldflags --libs --system-libs`
 INST_PASS=@METACG_INSTALL_DIR@/lib/libcgpatch-inst-pass.so
 RUNTIME=@METACG_INSTALL_DIR@/lib/libcgpatch-runtime.a
@@ -23,7 +19,6 @@ INST_FLAGS_LINK=""
 
 require_full_lto=0
 add_inst_pass=1 # enabled by default
-
 
 ARGS=()
 #Command option
@@ -62,7 +57,6 @@ if [[ "$add_inst_pass" == 1 ]]; then
   CLI_FLAGS+=" $INST_FLAGS"
   CLI_FLAGS_LINK+=" $INST_FLAGS_LINK"
 fi
-
 
 # set first argument as compiler
 COMPILER=$1;

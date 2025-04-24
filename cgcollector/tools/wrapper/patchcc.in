@@ -1,9 +1,7 @@
 #!/bin/bash
 
-
 LLVM_FLAGS=`llvm-config --cflags --ldflags --libs --system-libs`
 INST_PASS=@METACG_INSTALL_DIR@/lib/libcgpatch-inst-pass.so
-PTA_PASS=@METACG_INSTALL_DIR@/lib/libcgpatch-pta-pass.so
 RUNTIME=@METACG_INSTALL_DIR@/lib64/libcgpatch-runtime.a
 
 # Check if linking is enabled
@@ -19,13 +17,8 @@ done
 INST_FLAGS=" -Xclang -load -Xclang $INST_PASS -fpass-plugin=$INST_PASS"
 INST_FLAGS_LINK=""
 
-PTA_FLAGS=""
-PTA_FLAGS_LINK=" -Wl,--load-pass-plugin=$PTA_PASS -Wl,-mllvm=-load=$PTA_PASS"
-
 require_full_lto=0
 add_inst_pass=1 # enabled by default
-add_pta_pass=0
-patch_file="static_patch.mcg"
 
 ARGS=()
 #Command option
@@ -37,20 +30,6 @@ while [[ $# -gt 0 ]]; do
             ;;
         --instrument-ctors-dtors | -instrument-ctors-dtors)
             INST_FLAGS+=" -mllvm -instrument-ctors-dtors"
-            ;;
-        --points-to-analysis | -points-to-analysis | --pta | -pta)
-            add_pta_pass=1
-            require_full_lto=1
-            ;;
-        --patch-file | -patch-file)
-            echo $2
-            if [[ -n "$2" && "$2" != -* ]]; then
-                patch_file="$2"
-                shift  # Skip the argument
-            else
-                echo "Error: --patch-file requires a filename"
-                exit 1
-            fi
             ;;
         --verbose)
             INST_FLAGS+=" -mllvm -cgpatch-verbose"
@@ -64,8 +43,6 @@ while [[ $# -gt 0 ]]; do
 done
 
 set -- "${ARGS[@]}"  #  resets the positional parameters ($@) with the values stored in ARGS.
-
-PTA_FLAGS_LINK+=" -Wl,-mllvm=-cgpatch-outfile=${patch_file}"
 
 CLI_FLAGS=" -fwhole-program-vtables"
 CLI_FLAGS_LINK=" -fuse-ld=lld"
@@ -81,20 +58,15 @@ if [[ "$add_inst_pass" == 1 ]]; then
   CLI_FLAGS_LINK+=" $INST_FLAGS_LINK"
 fi
 
-if [[ "$add_pta_pass" == 1 ]]; then
-  CLI_FLAGS+=" $PTA_FLAGS"
-  CLI_FLAGS_LINK+=" $PTA_FLAGS_LINK"
-fi
-
 # set first argument as compiler
 COMPILER=$1;
 shift
 
 if [[ "$linking" == yes ]]
 then
-  echo "[Wrapper] Linking: $COMPILER $CLI_FLAGS $CLI_FLAGS_LINK $@ -lstdc++ -L@METACG_INSTALL_DIR@/lib64 -lmetacg -Wl,-whole-archive $RUNTIME -Wl,-no-whole-archive -Wl,--rpath,@GRAPH_LIB@ $LLVM_FLAGS"
+  #echo "[Wrapper] Linking: $COMPILER $CLI_FLAGS $CLI_FLAGS_LINK $@ -lstdc++ -L@METACG_INSTALL_DIR@/lib64 -lmetacg -Wl,-whole-archive $RUNTIME -Wl,-no-whole-archive -Wl,--rpath,@GRAPH_LIB@ $LLVM_FLAGS"
   $COMPILER $CLI_FLAGS $CLI_FLAGS_LINK "$@" -lstdc++ -L@METACG_INSTALL_DIR@/lib64 -lmetacg -Wl,-whole-archive $RUNTIME -Wl,-no-whole-archive -Wl,--rpath,@GRAPH_LIB@ $LLVM_FLAGS
 else
-  echo "[Wrapper] Compiling: $COMPILER $CLI_FLAGS $@"
+  #echo "[Wrapper] Compiling: $COMPILER $CLI_FLAGS $@"
   $COMPILER $CLI_FLAGS "$@"
 fi
