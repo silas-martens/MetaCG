@@ -119,8 +119,7 @@ class CallGraph : public clang::RecursiveASTVisitor<CallGraph> {
   /// declarations to collect the root functions.
   bool VisitFunctionDecl(clang::FunctionDecl* FD);
   bool VisitCXXMethodDecl(clang::CXXMethodDecl* MD);
-  bool VisitCXXDestructorDecl(clang::CXXDestructorDecl *Destructor);
-
+  bool VisitCXXDestructorDecl(clang::CXXDestructorDecl* Destructor);
 
   /// Part of recursive declaration visitation.
   bool VisitObjCMethodDecl(clang::ObjCMethodDecl* MD) {
@@ -144,7 +143,7 @@ class CallGraph : public clang::RecursiveASTVisitor<CallGraph> {
 
   bool shouldWalkTypesOfTypeLocs() const { return false; }
   bool shouldVisitTemplateInstantiations() const { return true; }
-  bool shouldVisitImplicitCode() const {return true;}
+  bool shouldVisitImplicitCode() const { return true; }
 
  private:
   UnresolvedMapTy unresolvedSymbols;

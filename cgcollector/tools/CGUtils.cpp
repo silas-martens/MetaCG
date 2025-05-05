@@ -15,16 +15,15 @@
 #include <unordered_set>
 
 using namespace metacg;
-bool handleOptions(int argc, char *argv[], std::string &inputFile, std::string &countReachableFromName,
-                   bool &countReachableFromFlag, bool &countEdges) {
+bool handleOptions(int argc, char* argv[], std::string& inputFile, std::string& countReachableFromName,
+                   bool& countReachableFromFlag, bool& countEdges) {
   try {
     // Define options using cxxopts
     cxxopts::Options options("program", "Program to analyze reachable functions from main");
 
     // Add options
     options.add_options()("c,countReachableFrom", "Counts number of reachable functions from arg",
-                          cxxopts::value<std::string>())
-        ("e,countNumberOfEdges", "Counts number of edges",
+                          cxxopts::value<std::string>())("e,countNumberOfEdges", "Counts number of edges",
                                                          cxxopts::value<bool>()->default_value("false"))(
         "input", "Input JSON file", cxxopts::value<std::string>());
 
@@ -53,34 +52,34 @@ bool handleOptions(int argc, char *argv[], std::string &inputFile, std::string &
 
     return true;
 
-  } catch (const cxxopts::OptionException &e) {
+  } catch (const cxxopts::OptionException& e) {
     std::cerr << "Error parsing options: " << e.what() << std::endl;
     return false;
   }
 }
 
-std::set<std::string> getAllOverriddenFunctions(nlohmann::json &cg, nlohmann::json &baseFn,
-                                                const std::string &overridesKey) {
+std::set<std::string> getAllOverriddenFunctions(nlohmann::json& cg, nlohmann::json& baseFn,
+                                                const std::string& overridesKey) {
   std::set<std::string> overriddenSet;
   std::cout << "baseFn: " << baseFn.dump() << std::endl;
   auto overrides = baseFn[overridesKey];
   std::cout << "overrides: " << overrides.dump() << std::endl;
   std::for_each(overrides.begin(), overrides.end(),
-                [&cg, &overriddenSet, &overridesKey](const std::string &overridesFn) {
+                [&cg, &overriddenSet, &overridesKey](const std::string& overridesFn) {
                   if (!cg.contains(overridesFn)) {
                     std::cout << "Returns" << std::endl;
                     return;
                   }
-                  auto &fnNode = cg[overridesFn];
+                  auto& fnNode = cg[overridesFn];
                   overriddenSet.insert(overridesFn);
-                  for (auto &entry : getAllOverriddenFunctions(cg, fnNode, overridesKey)) {
+                  for (auto& entry : getAllOverriddenFunctions(cg, fnNode, overridesKey)) {
                     overriddenSet.insert(entry);
                   }
                 });
   return overriddenSet;
 }
 // Function to count reachable functions from main
-int countReachableFrom(const std::unique_ptr<metacg::Callgraph> &cg, const std::string &name, nlohmann::json &cgJson) {
+int countReachableFrom(const std::unique_ptr<metacg::Callgraph>& cg, const std::string& name, nlohmann::json& cgJson) {
   int numberOfReachableFromMain;
   // Deserialize graph
 
@@ -100,18 +99,16 @@ int countReachableFrom(const std::unique_ptr<metacg::Callgraph> &cg, const std::
       visited.insert(currentNodeId);
       auto callees = cg->getCallees(currentNodeId);
 
-
-      for (const auto &callee : callees) {
+      for (const auto& callee : callees) {
         // Adding virtual callees to visited functions
-        const auto &currentNode = callee;
-        const auto &currentNodeName = currentNode->getFunctionName();
+        const auto& currentNode = callee;
+        const auto& currentNodeName = currentNode->getFunctionName();
 
-        const auto &overriddenFunctions = getAllOverriddenFunctions(cgJson, cgJson[currentNodeName], "overriddenBy");
+        const auto& overriddenFunctions = getAllOverriddenFunctions(cgJson, cgJson[currentNodeName], "overriddenBy");
         std::cout << "Adding " << overriddenFunctions.size() << "new visited functions as child of "
                   << currentNode->getFunctionName() << "\n";
-        for (auto &overriddenFunction : overriddenFunctions) {
+        for (auto& overriddenFunction : overriddenFunctions) {
           if (visited.find(cg->getNode(overriddenFunction)->getId()) == visited.end()) {
-
             stack.push(cg->getNode(overriddenFunction)->getId());
           }
         }
@@ -125,9 +122,9 @@ int countReachableFrom(const std::unique_ptr<metacg::Callgraph> &cg, const std::
   return visited.size();
 }
 
-int countNumberOfEdges(const std::unique_ptr<metacg::Callgraph> &cg) { return cg->getEdges().size(); }
+int countNumberOfEdges(const std::unique_ptr<metacg::Callgraph>& cg) { return cg->getEdges().size(); }
 
-void printEdges(const std::unique_ptr<metacg::Callgraph> &cg) {
+void printEdges(const std::unique_ptr<metacg::Callgraph>& cg) {
   auto EdgeContainer = cg->getEdges();
 
   std::ofstream outFile("output.txt");
@@ -138,12 +135,12 @@ void printEdges(const std::unique_ptr<metacg::Callgraph> &cg) {
     exit(1);
   }
 
-  for (const auto &e : EdgeContainer) {
+  for (const auto& e : EdgeContainer) {
     outFile << cg->getNode(e.first.first)->getFunctionName() << " calls "
             << cg->getNode(e.first.second)->getFunctionName() << "\n";
   }
 }
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   // Parse command-line arguments
   std::string inputFile;
   std::string countReachableName;
@@ -185,4 +182,3 @@ int main(int argc, char **argv) {
   }
   return 0;
 }
-

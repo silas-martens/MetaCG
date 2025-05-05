@@ -76,8 +76,8 @@ nlohmann::json mergeFileFormatTwo(const std::string& wholeCGFilename, const std:
         if (v["meta"].is_null()) {
           doMerge(c, v);
 
-        // TODO multiple bodies possible, if the body is in header?
-        // TODO separate merge of meta information
+          // TODO multiple bodies possible, if the body is in header?
+          // TODO separate merge of meta information
         } else if (v["hasBody"].get<bool>() && c["hasBody"].get<bool>()) {
           // std::cout << "WARNING: merge of " << it.key()
           //          << " has detected multiple bodies (equal number of statements would be good.)" << std::endl;

@@ -1224,8 +1224,8 @@ void CallGraph::addNodeForDecl(Decl* D, bool IsGlobal) {
   // Process all the calls by this function as well.
   if (Stmt* Body = D->getBody()) {
     CGBuilder builder(this, Node, captureCtorsDtors, unresolvedSymbols);
-    if(auto cxx = dyn_cast<clang::CXXConstructorDecl>(D);cxx){
-      for(auto ini : cxx->inits()){
+    if (auto cxx = dyn_cast<clang::CXXConstructorDecl>(D); cxx) {
+      for (auto ini : cxx->inits()) {
         builder.Visit(ini->getInit());
       }
     }
@@ -1289,27 +1289,26 @@ bool CallGraph::VisitFunctionDecl(clang::FunctionDecl* FD) {
   return true;
 }
 
-bool CallGraph::VisitCXXDestructorDecl(clang::CXXDestructorDecl *Destructor) {
+bool CallGraph::VisitCXXDestructorDecl(clang::CXXDestructorDecl* Destructor) {
   if (!includeInGraph(Destructor)) {
     return true;
   }
 
-  const CXXRecordDecl *ClassDecl = Destructor->getParent();
-  if (!ClassDecl) return true;
+  const CXXRecordDecl* ClassDecl = Destructor->getParent();
+  if (!ClassDecl)
+    return true;
 
   auto DtorNode = getOrInsertNode(Destructor);
   assert(DtorNode);
 
-
   if (captureCtorsDtors) {
     // Check for base class destructors
-    for (const auto &Base : ClassDecl->bases()) {
-      const CXXRecordDecl *BaseDecl = Base.getType()->getAsCXXRecordDecl();
+    for (const auto& Base : ClassDecl->bases()) {
+      const CXXRecordDecl* BaseDecl = Base.getType()->getAsCXXRecordDecl();
       if (BaseDecl && BaseDecl->hasDefinition()) {
-        if (CXXDestructorDecl *BaseDestructor = BaseDecl->getDestructor()) {
-
-         // llvm::outs() << "  -> Implicitly calls base destructor: ~"
-         //              << BaseDecl->getNameAsString() << "()\n";
+        if (CXXDestructorDecl* BaseDestructor = BaseDecl->getDestructor()) {
+          // llvm::outs() << "  -> Implicitly calls base destructor: ~"
+          //              << BaseDecl->getNameAsString() << "()\n";
           CallGraphNode* CalleeNode = getOrInsertNode(BaseDestructor);
           assert(CalleeNode);
           DtorNode->addCallee(CalleeNode);
@@ -1324,11 +1323,11 @@ bool CallGraph::VisitCXXDestructorDecl(clang::CXXDestructorDecl *Destructor) {
       }
     }
     // Detect member variable destruction
-    for (const FieldDecl *Field : ClassDecl->fields()) {
+    for (const FieldDecl* Field : ClassDecl->fields()) {
       QualType FieldType = Field->getType();
-      if (const CXXRecordDecl *MemberClass = FieldType->getAsCXXRecordDecl()) {
+      if (const CXXRecordDecl* MemberClass = FieldType->getAsCXXRecordDecl()) {
         if (MemberClass->hasDefinition() && MemberClass->hasNonTrivialDestructor()) {
-          if (CXXDestructorDecl *MemberDestructor = MemberClass->getDestructor()) {
+          if (CXXDestructorDecl* MemberDestructor = MemberClass->getDestructor()) {
             CallGraphNode* CalleeNode = getOrInsertNode(MemberDestructor);
             assert(CalleeNode);
             DtorNode->addCallee(CalleeNode);
@@ -1341,11 +1340,9 @@ bool CallGraph::VisitCXXDestructorDecl(clang::CXXDestructorDecl *Destructor) {
         }
       }
     }
-
   }
   return true;
 }
-
 
 bool CallGraph::VisitCXXMethodDecl(clang::CXXMethodDecl* MD) {
   if (!MD->isVirtual() || !includeInGraph(MD)) {

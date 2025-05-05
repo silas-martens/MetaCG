@@ -5,9 +5,8 @@
 #include <vector>
 
 typedef void (*FuncPtr)();
-void foo() { }
-void bar() { }
-
+void foo() {}
+void bar() {}
 
 void callIndirect(FuncPtr fptr) {
   fptr();  // Indirect call
@@ -21,5 +20,3 @@ int main() {
   callIndirect(ptrs[0]);
   return 0;
 }
-
-

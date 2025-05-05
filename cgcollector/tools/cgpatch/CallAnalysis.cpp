@@ -1,18 +1,18 @@
 /**
-* File: CallAnalysis.cpp
-* License: Part of the MetaCG project. Licensed under BSD 3 clause license. See LICENSE.txt file at
-* https://github.com/tudasc/metacg/LICENSE.txt
-*
-* Created by Sebastian on 3/7/25.
-*/
+ * File: CallAnalysis.cpp
+ * License: Part of the MetaCG project. Licensed under BSD 3 clause license. See LICENSE.txt file at
+ * https://github.com/tudasc/metacg/LICENSE.txt
+ *
+ * Created by Sebastian on 3/7/25.
+ */
 
 #include "CallAnalysis.h"
 
-#include "llvm/IR/Function.h"
 #include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/InstrTypes.h"
 #include "llvm/IR/IntrinsicInst.h"
-#include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Module.h"
 
 using namespace llvm;
@@ -72,7 +72,8 @@ CallType detectCallType(CallBase* Call) {
   Value* ObjectPtr = VTableLoad->getPointerOperand();
   Value* Idx = GEP->getOperand(1);
 
-  // Could check if idx is 0 (meaning the VTable is the first entry in the struct), but this is not guaranteed by the standard
+  // Could check if idx is 0 (meaning the VTable is the first entry in the struct), but this is not guaranteed by the
+  // standard
   //   auto *ConstIdx = dyn_cast<ConstantInt>(Idx);
   //   if (!ConstIdx || ConstIdx->isZero()) return Indirect;
 

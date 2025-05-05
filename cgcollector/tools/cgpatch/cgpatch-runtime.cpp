@@ -30,7 +30,7 @@ MappedSymTableMap symTables;
 bool shouldWrite = true;
 int counter;
 
-//Logger
+// Logger
 spdlog::logger* console;
 spdlog::logger* errConsole;
 
@@ -73,9 +73,7 @@ void finalizeGlobalCallgraph() {
 
 // Struct responsible for initialization and finalization of the patch-graph
 struct ValidatorInitializer {
-  ValidatorInitializer() {
-    initializeGlobalCallgraph();
-  }
+  ValidatorInitializer() { initializeGlobalCallgraph(); }
 
   ValidatorInitializer(const ValidatorInitializer&) = delete;
   ValidatorInitializer& operator=(const ValidatorInitializer&) = delete;
@@ -83,9 +81,7 @@ struct ValidatorInitializer {
   ValidatorInitializer(ValidatorInitializer&&) = delete;
   ValidatorInitializer& operator=(ValidatorInitializer&&) = delete;
 
-  ~ValidatorInitializer() {
-    finalizeGlobalCallgraph();
-  }
+  ~ValidatorInitializer() { finalizeGlobalCallgraph(); }
 } _validator_init_finalize;
 }  // namespace
 
@@ -102,7 +98,7 @@ extern "C" void __metacg_indirect_call(const char* name, void* address) {
   }
   knownCalls.insert(address);
 
-  //static ValidatorInitializer validator_init;
+  // static ValidatorInitializer validator_init;
   initializeGlobalCallgraph();
 
   // resolve name

@@ -20,8 +20,8 @@
 #include <llvm/ADT/StringRef.h>
 #include <string>
 
-#include "io/VersionTwoMCGWriter.h"
 #include "CallAnalysis.h"
+#include "io/VersionTwoMCGWriter.h"
 
 using namespace llvm;
 using namespace cgpatch;
@@ -36,7 +36,7 @@ namespace {
 
 void insertMetaCGCall(Instruction& ins, Function& f, Value* calledOperand, Function* runtimeFunction);
 
-    // Instrumentation
+// Instrumentation
 void instrumentIndirectCalls(Module& M) {
   ItaniumPartialDemangler demangler;
   nlohmann::json j;
@@ -54,10 +54,8 @@ void instrumentIndirectCalls(Module& M) {
     if (verbose) {
       outs() << "Traversing function: " << F.getName() << "\n";
     }
-    for(BasicBlock& B : F)
-      for(Instruction& Ins : B) {
-
-
+    for (BasicBlock& B : F)
+      for (Instruction& Ins : B) {
         // Check if Ins is a call instruction
         auto* CB = dyn_cast<CallBase>(&Ins);
         auto CT = detectCallType(CB);
@@ -65,9 +63,8 @@ void instrumentIndirectCalls(Module& M) {
         if (verbose) {  // Only print if verbose is true
           printCallTypeInfo(CT, CB);
         }
-        if(CT == CallType::Unknown)
+        if (CT == CallType::Unknown)
           continue;
-
 
         auto calledFunction = CB->getCalledFunction();
         if (isDirect(CT)) {  // Direct call
@@ -81,7 +78,7 @@ void instrumentIndirectCalls(Module& M) {
             }
           }
         } else {  // indirect call
-          if(CT == CallType::Virtual)
+          if (CT == CallType::Virtual)
             continue;
 
           insertMetaCGCall(Ins, F, CB->getCalledOperand(), runtimeFunction);
@@ -107,8 +104,6 @@ void insertMetaCGCall(Instruction& ins, Function& f, Value* calledOperand, Funct
   Builder.CreateCall(runtimeFunction, {strArg, calledOperand});
 }
 
-
-
 struct CGPatchInst : PassInfoMixin<CGPatchInst> {
   PreservedAnalyses run(Module& M, ModuleAnalysisManager&) {
     instrumentIndirectCalls(M);
@@ -118,7 +113,6 @@ struct CGPatchInst : PassInfoMixin<CGPatchInst> {
   static bool isRequired() { return true; }
 };
 }  // namespace
-
 
 // Registration of the new pass
 llvm::PassPluginLibraryInfo getCGPatchInstPluginInfo() {

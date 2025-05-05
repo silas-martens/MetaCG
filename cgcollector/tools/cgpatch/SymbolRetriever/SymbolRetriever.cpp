@@ -7,12 +7,12 @@
 #include "SymbolRetriever.h"
 
 #include <cstring>
+#include <elf.h>
+#include <fcntl.h>
 #include <fstream>
 #include <iostream>
 #include <sstream>
 #include <unistd.h>
-#include <fcntl.h>
-#include <elf.h>
 
 namespace SymbolRetriever {
 
@@ -38,33 +38,32 @@ struct RemoveEnvInScope {
   const char* oldVal;
 };
 
+uintptr_t get_text_section_offset_from_library(const std::string& lib_path) {
+  int fd = open(lib_path.c_str(), O_RDONLY);
+  if (fd < 0) {
+    perror("open");
+    return 0;
+  }
 
-uintptr_t get_text_section_offset_from_library(const std::string &lib_path) {
-    int fd = open(lib_path.c_str(), O_RDONLY);
-    if (fd < 0) {
-        perror("open");
-        return 0;
+  Elf64_Ehdr ehdr;
+  read(fd, &ehdr, sizeof(ehdr));
+
+  lseek(fd, ehdr.e_phoff, SEEK_SET);
+
+  Elf64_Phdr phdr;
+  uintptr_t text_offset = 0;
+  for (int i = 0; i < ehdr.e_phnum; i++) {
+    read(fd, &phdr, sizeof(phdr));
+
+    if (phdr.p_type == PT_LOAD && (phdr.p_flags & PF_X)) {
+      // Found the executable segment in the shared library
+      text_offset = phdr.p_vaddr - phdr.p_offset;
+      break;
     }
+  }
 
-    Elf64_Ehdr ehdr;
-    read(fd, &ehdr, sizeof(ehdr));
-
-    lseek(fd, ehdr.e_phoff, SEEK_SET);
-
-    Elf64_Phdr phdr;
-    uintptr_t text_offset = 0;
-    for (int i = 0; i < ehdr.e_phnum; i++) {
-        read(fd, &phdr, sizeof(phdr));
-
-        if (phdr.p_type == PT_LOAD && (phdr.p_flags & PF_X)) {
-            // Found the executable segment in the shared library
-            text_offset = phdr.p_vaddr - phdr.p_offset;
-            break;
-        }
-    }
-
-    close(fd);
-    return text_offset;
+  close(fd);
+  return text_offset;
 }
 
 std::string getExecPath() {
@@ -89,8 +88,6 @@ std::vector<MemMapEntry> readMemoryMap() {
     return entries;
   }
 
-
-
   std::string addrRange;
   std::string perms;
   uint64_t offset;
@@ -109,7 +106,7 @@ std::vector<MemMapEntry> readMemoryMap() {
     }
 
     uintptr_t addrBegin = std::stoul(addrRange.substr(0, addrRange.find('-')), nullptr, 16);
-    // The offset reported by the memory map does not consider alignment. 
+    // The offset reported by the memory map does not consider alignment.
     uint64_t textOffset = get_text_section_offset_from_library(path);
     entries.push_back({path, addrBegin, offset + textOffset});
   }
