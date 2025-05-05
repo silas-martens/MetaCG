@@ -13,15 +13,17 @@ option(
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 
-add_library(cgpatch-call-analysis STATIC CallAnalysis.cpp)
+add_library(cgpatch-call-analysis STATIC src/CallAnalysis.cpp)
 target_link_libraries(cgpatch-call-analysis PUBLIC ${llvm_libs})
+target_include_directories(cgpatch-call-analysis PRIVATE include)
 
 # Create Libraries
-add_library(cgpatch-inst-pass SHARED cgpatch-inst-pass.cpp)
-add_library(cgpatch-runtime STATIC cgpatch-runtime.cpp SymbolRetriever/SymbolRetriever.cpp)
+add_library(cgpatch-inst-pass SHARED src/cgpatch-inst-pass.cpp)
+add_library(cgpatch-runtime STATIC src/cgpatch-runtime.cpp src/SymbolRetriever/SymbolRetriever.cpp)
 
-target_include_directories(cgpatch-runtime PUBLIC SymbolRetriever)
 target_link_libraries(cgpatch-inst-pass PRIVATE cgpatch-call-analysis ${llvm_libs})
+target_include_directories(cgpatch-inst-pass PRIVATE include)
+target_include_directories(cgpatch-runtime PUBLIC include/SymbolRetriever/)
 
 if(CGPATCH_USE_MPI)
   target_compile_definitions(cgpatch-runtime PRIVATE USE_MPI=1)
@@ -36,3 +38,6 @@ add_spdlog_libraries(cgpatch-inst-pass)
 add_json(cgpatch-inst-pass)
 
 install(TARGETS cgpatch-inst-pass cgpatch-runtime LIBRARY DESTINATION lib)
+
+add_subdirectory(wrapper)
+add_subdirectory(test)

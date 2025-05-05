@@ -118,9 +118,7 @@ if(METACG_BUILD_CGPATCH)
      GREATER
      14
   )
-    add_subdirectory(cgcollector/tools/cgpatch/)
-    add_subdirectory(cgcollector/tools/wrapper/)
-    add_subdirectory(cgcollector/test/cgpatch/)
+    add_subdirectory(tools/cgpatch/)
   else()
     message(FATAL_ERROR "CGPatch requires LLVM version 15 or higher")
   endif()
