@@ -191,7 +191,7 @@ void metacg::Callgraph::merge(const metacg::Callgraph& other) {
           mergeNode->setHasBody(node->getHasBody());
 
           if (!mergeNode->has<OverrideMD>() && node->has<OverrideMD>()) {
-              mergeNode->addMetaData<OverrideMD>(new OverrideMD());
+            mergeNode->addMetaData<OverrideMD>(new OverrideMD());
           }
         }
 

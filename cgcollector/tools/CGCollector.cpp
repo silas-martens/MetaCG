@@ -18,9 +18,9 @@ static llvm::cl::OptionCategory cgc("CGCollector");
 static llvm::cl::opt<bool> captureCtorsDtors("capture-ctors-dtors",
                                              llvm::cl::desc("Capture calls to Constructors and Destructors"),
                                              llvm::cl::cat(cgc));
-static llvm::cl::opt<bool> noInferCtorDtorCalls("no-infer-ctor-dtor-calls",
-    llvm::cl::desc("Don't infer implicit calls to constructors and destructors"),
-                                         llvm::cl::cat(cgc));
+static llvm::cl::opt<bool> noInferCtorDtorCalls(
+    "no-infer-ctor-dtor-calls", llvm::cl::desc("Don't infer implicit calls to constructors and destructors"),
+    llvm::cl::cat(cgc));
 static llvm::cl::opt<bool> captureStackCtorsDtors(
     "capture-stack-ctors-dtors",
     llvm::cl::desc(

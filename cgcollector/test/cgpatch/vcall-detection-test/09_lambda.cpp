@@ -3,15 +3,13 @@
 #include <iostream>
 
 int main() {
-    auto lambda = []() {
-        std::cout << "Lambda called" << std::endl;
-    };
+  auto lambda = []() { std::cout << "Lambda called" << std::endl; };
 
-    void (*funcPtr)() = lambda;
+  void (*funcPtr)() = lambda;
 
-    // CHECK: Traversing function: main
-    // CHECK-NOT: Virtual call identified
-    // CHECK: Call is other indirect call
-    funcPtr();
-    return 0;
+  // CHECK: Traversing function: main
+  // CHECK-NOT: Virtual call identified
+  // CHECK: Call is other indirect call
+  funcPtr();
+  return 0;
 }

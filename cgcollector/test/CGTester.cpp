@@ -23,7 +23,6 @@ bool check(nlohmann::json testGraph, nlohmann::json groundTruth) {
   return groundTruth.at("_CG") == testGraph.at("_CG");
 }
 
-
 int main(int argc, char** argv) {
   if (argc != 3) {
     std::cerr << "Usage: " << argv[0] << " groundtruth.json collector-result.ipcg" << std::endl;
@@ -54,4 +53,3 @@ int main(int argc, char** argv) {
     return 1;
   }
 }
-

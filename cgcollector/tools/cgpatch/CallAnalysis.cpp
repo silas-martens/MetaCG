@@ -98,11 +98,11 @@ Value* getTypeTestMetadata(Value* V) {
 }
 
 void printCallTypeInfo(CallType CT, llvm::CallBase* CB) {
-  if(!CB) {
+  if (!CB) {
     return;
   }
 
-	switch (CT) {
+  switch (CT) {
     case Virtual:
       llvm::outs() << "Virtual call identified: " << *CB << "\n";
       break;
@@ -123,4 +123,4 @@ void printCallTypeInfo(CallType CT, llvm::CallBase* CB) {
   }
 }
 
-}
+}  // namespace cgpatch

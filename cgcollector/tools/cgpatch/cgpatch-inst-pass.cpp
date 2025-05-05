@@ -51,7 +51,9 @@ void instrumentIndirectCalls(Module& M) {
   Function* runtimeFunction = cast<Function>(M.getOrInsertFunction("__metacg_indirect_call", functionType).getCallee());
 
   for (Function& F : M) {
-      if(verbose) { outs() <<"Traversing function: " << F.getName() << "\n"; }
+    if (verbose) {
+      outs() << "Traversing function: " << F.getName() << "\n";
+    }
     for(BasicBlock& B : F)
       for(Instruction& Ins : B) {
 
@@ -60,7 +62,7 @@ void instrumentIndirectCalls(Module& M) {
         auto* CB = dyn_cast<CallBase>(&Ins);
         auto CT = detectCallType(CB);
 
-        if (verbose) { // Only print if verbose is true
+        if (verbose) {  // Only print if verbose is true
           printCallTypeInfo(CT, CB);
         }
         if(CT == CallType::Unknown)
@@ -87,7 +89,7 @@ void instrumentIndirectCalls(Module& M) {
         }
       }
   }
-  if(verbose) {
+  if (verbose) {
     llvm::outs() << "[Info] Instrumented " << (indirectCallCount + ctorDtorCallCount) << " function calls in "
                  << M.getName().str() << ":\n"
                  << "\t" << indirectCallCount << ": "

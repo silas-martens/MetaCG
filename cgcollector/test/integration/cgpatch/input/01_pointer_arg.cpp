@@ -17,6 +17,4 @@ void caller(int x) {
   foo_with_arg(bar_with_arg, x);
 }
 
-int main() {
-  caller(2);
-}
+int main() { caller(2); }
