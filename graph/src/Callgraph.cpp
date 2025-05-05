@@ -149,7 +149,6 @@ CgNode* Callgraph::getNode(size_t id) const {
   if (nodes.find(id) == nodes.end()) {
     return nullptr;
   }
-
   return nodes.at(id).get();
 }
 
@@ -191,7 +190,7 @@ void metacg::Callgraph::merge(const metacg::Callgraph& other) {
           mergeNode->setHasBody(node->getHasBody());
 
           if (!mergeNode->has<OverrideMD>() && node->has<OverrideMD>()) {
-            mergeNode->addMetaData<OverrideMD>(new OverrideMD());
+              mergeNode->addMetaData<OverrideMD>(new OverrideMD());
           }
         }
 
@@ -231,6 +230,7 @@ bool Callgraph::existEdgeFromTo(const std::string& source, const std::string& ta
   if (nameIdMap.find(source) == nameIdMap.end() || nameIdMap.find(target) == nameIdMap.end()) {
     return false;
   }
+
   return existEdgeFromTo(nameIdMap.at(source), nameIdMap.at(target));
 }
 

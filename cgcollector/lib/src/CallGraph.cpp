@@ -525,6 +525,7 @@ class CGBuilder : public StmtVisitor<CGBuilder> {
   std::vector<std::string> vtaInstances;
 
   bool captureCtorsDtors;
+  bool inferCtorDtorCalls;
   typedef llvm::DenseMap<const VarDecl*, llvm::SmallSet<const Decl*, 8>> AliasMapT;
   // Stores the aliases per variable
   AliasMapT aliases;
@@ -538,8 +539,8 @@ class CGBuilder : public StmtVisitor<CGBuilder> {
   std::unordered_map<const VarDecl*, llvm::SmallSet<const FunctionDecl*, 16>> functionPointerTargets;
 
  public:
-  CGBuilder(CallGraph* g, CallGraphNode* N, bool captureCtorsDtors, CallGraph::UnresolvedMapTy unresolvedSyms)
-      : G(g), callerNode(N), captureCtorsDtors(captureCtorsDtors), unresolvedSymbols(unresolvedSyms) {}
+  CGBuilder(CallGraph* g, CallGraphNode* N, bool captureCtorsDtors, bool inferCtorDtorCalls, CallGraph::UnresolvedMapTy unresolvedSyms)
+      : G(g), callerNode(N), captureCtorsDtors(captureCtorsDtors), inferCtorDtorCalls(inferCtorDtorCalls), unresolvedSymbols(unresolvedSyms) {}
 
   void printAliases() const {
     for (const auto& aliasP : aliases) {
@@ -799,7 +800,8 @@ class CGBuilder : public StmtVisitor<CGBuilder> {
       return;
     }
 
-    if (auto ctor = CE->getConstructor()) {
+    // Ignoring elidable constructor calls here
+    if (auto ctor = CE->getConstructor(); ctor && !CE->isElidable()) {
       addCalledDecl(ctor, nullptr);
     }
 
@@ -957,7 +959,9 @@ class CGBuilder : public StmtVisitor<CGBuilder> {
     //    std::cout << "Visiting the lambda expression: " << LEstr.front() << " @ " << LE->getCallOperator() <<
     //    std::endl;
     auto lambdaStaticInvoker = LE->getLambdaClass()->getLambdaStaticInvoker();
-    addCalledDecl(lambdaStaticInvoker, LE->getCallOperator(), nullptr);
+    if (lambdaStaticInvoker) {
+      addCalledDecl(lambdaStaticInvoker, LE->getCallOperator(), nullptr);
+    }
     for (auto conversionIt = LE->getLambdaClass()->conversion_begin();
          conversionIt != LE->getLambdaClass()->conversion_end(); ++conversionIt) {
       if (auto conv = *conversionIt) {
@@ -1140,7 +1144,7 @@ class CGBuilder : public StmtVisitor<CGBuilder> {
       // exit(-1);
     }
 
-    if (captureCtorsDtors) {
+    if (captureCtorsDtors && inferCtorDtorCalls) {
       // Check for implicit destruction of local variables
       for (Decl* D : ds->decls()) {
         if (VarDecl* VD = dyn_cast<VarDecl>(D)) {
@@ -1186,6 +1190,14 @@ CallGraph::CallGraph() : Root(getOrInsertNode(nullptr)) {}
 
 CallGraph::~CallGraph() = default;
 
+[[nodiscard]] inline bool starts_with(llvm::StringRef Str, llvm::StringRef Prefix) {
+#if LLVM_VERSION_MAJOR < 17
+  return Str.startswith(Prefix);
+#else
+  return Str.starts_with(Prefix);
+#endif
+}
+
 bool CallGraph::includeInGraph(const Decl* D) {
   assert(D);
 
@@ -1205,7 +1217,7 @@ bool CallGraph::includeInGraph(const Decl* D) {
 
     IdentifierInfo* II = FD->getIdentifier();
     // TODO not sure whether we want to include __inline marked functions
-    if (II && II->getName().startswith("__inline")) {
+    if (II && starts_with(II->getName(), "__inline")) {
       return true;
     }
   }
@@ -1223,7 +1235,7 @@ void CallGraph::addNodeForDecl(Decl* D, bool IsGlobal) {
 #ifndef DEBUG_TEST_AA
   // Process all the calls by this function as well.
   if (Stmt* Body = D->getBody()) {
-    CGBuilder builder(this, Node, captureCtorsDtors, unresolvedSymbols);
+    CGBuilder builder(this, Node, captureCtorsDtors, inferCtorDtorCalls, unresolvedSymbols);
     if (auto cxx = dyn_cast<clang::CXXConstructorDecl>(D); cxx) {
       for (auto ini : cxx->inits()) {
         builder.Visit(ini->getInit());
@@ -1290,7 +1302,7 @@ bool CallGraph::VisitFunctionDecl(clang::FunctionDecl* FD) {
 }
 
 bool CallGraph::VisitCXXDestructorDecl(clang::CXXDestructorDecl* Destructor) {
-  if (!includeInGraph(Destructor)) {
+  if (!includeInGraph(Destructor) || !captureCtorsDtors) {
     return true;
   }
 
@@ -1301,24 +1313,15 @@ bool CallGraph::VisitCXXDestructorDecl(clang::CXXDestructorDecl* Destructor) {
   auto DtorNode = getOrInsertNode(Destructor);
   assert(DtorNode);
 
-  if (captureCtorsDtors) {
+  if (inferCtorDtorCalls) {
     // Check for base class destructors
     for (const auto& Base : ClassDecl->bases()) {
       const CXXRecordDecl* BaseDecl = Base.getType()->getAsCXXRecordDecl();
       if (BaseDecl && BaseDecl->hasDefinition()) {
         if (CXXDestructorDecl* BaseDestructor = BaseDecl->getDestructor()) {
-          // llvm::outs() << "  -> Implicitly calls base destructor: ~"
-          //              << BaseDecl->getNameAsString() << "()\n";
           CallGraphNode* CalleeNode = getOrInsertNode(BaseDestructor);
           assert(CalleeNode);
           DtorNode->addCallee(CalleeNode);
-          // If the destructor is implicit (i.e. default) than it may not be visited.
-          // This happens if it is not explicitly used anywhere else.
-          // Since the call from the inheriting class destructor is implicit itself, we have to manually ensure this
-          // destructor is visisted.
-          if (BaseDestructor->isImplicit()) {
-            VisitCXXDestructorDecl(BaseDestructor);
-          }
         }
       }
     }
@@ -1331,11 +1334,6 @@ bool CallGraph::VisitCXXDestructorDecl(clang::CXXDestructorDecl* Destructor) {
             CallGraphNode* CalleeNode = getOrInsertNode(MemberDestructor);
             assert(CalleeNode);
             DtorNode->addCallee(CalleeNode);
-
-            // Same reasoning as for implicit base class destructors.
-            if (MemberDestructor->isImplicit()) {
-              VisitCXXDestructorDecl(MemberDestructor);
-            }
           }
         }
       }
