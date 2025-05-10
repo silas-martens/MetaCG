@@ -5,6 +5,14 @@ function pretty {
 	mv "$1".json "$1"
 }
 
+export OMPI_CXX=$(which clang++)
+export LD_LIBRARY_PATH=/home/sm41myca/work/metacg-install/lib64/:$LD_LIBRARY_PATH
+
+
+
+
+
+
 build_dir=build # default
 
 while getopts ":b:h" opt; do
@@ -33,7 +41,7 @@ logFile=$logDir/cgpatch-${CI_CONCURRENT_ID}.log
 inputDir=$PWD/input
 buildDir=$PWD/../../../../${build_dir}/
 cgpatchExe=$buildDir/cgcollector/tools/wrapper/patchcxx
-testerExe=$buildDir/cgcollector/test/cgtester
+testerExe=$buildDir/tools/cgpatch/test/cgtester
 
 # clean up
 if [ ! -d ${logDir} ]; then
@@ -50,33 +58,79 @@ else
 	testNo=$(($testNo+1))
 fi
 
-# Running testcases
-testcases=$inputDir/*.cpp
-for testcase in $testcases; do
-	# Setup test variables
-	testName="${testcase%.*}"
-	testGT=${testName}.gtpg
-	testPG="${testName}.pg"
-	testExe="${testName}.out"
-	export CGPATCH_CG_NAME="${testPG}"
-	
-	echo "Running testcase $testName."
-	
-	# Generate patch-graph
-	# FIX: remove -stdlib=libstdc++
-	$cgpatchExe mpicxx $testcase -stdlib=libstdc++ -o "${testName}.out" # Compile testcase
-	${testName}.out # Run testcase / Generate patch-graph
+# Running testcases single
+#testcases=$inputDir/*.cpp
+#for testcase in $testcases; do
+#	# Setup test variables
+#	testName="${testcase%.*}"
+#	testGT=${testName}.gtpg
+#	testPG="${testName}.pg"
+#	testExe="${testName}.out"
+#	export CGPATCH_CG_NAME="${testPG}"
+#	
+#	echo "Running testcase $testName."
+#	
+#	# Generate patch-graph
+#	# FIX: remove -stdlib=libstdc++
+#	$cgpatchExe mpicxx $testcase -stdlib=libstdc++ -o "${testName}.out" # Compile testcase
+#	${testName}.out # Run testcase / Generate patch-graph
+#
+#	$testerExe $testPG $testGT >> $logFile # Evaluate testcase
+#
+#	if [ $? -ne 0 ]; then
+#		echo "Failure for file: $testPG. Keeping generated file for inspection"
+#		pretty $testPG
+#		fails=$((fails + 1))
+#	else
+#		rm $testExe
+#		rm $testPG
+#	fi
+#done
+# Get unique testcase prefixes
+testcase_prefixes=$(find "$inputDir" -name '*.cpp' | sed -E 's|.*/([0-9]+)_[^/]+\.cpp|\1|' | sort -u)
+echo "$testcase_prefixes"
+for prefix in $testcase_prefixes; do
+    # Collect all files with this prefix
+    testSources=$(find "$inputDir" -name "${prefix}_*.cpp" | sort)
+    testName="${inputDir}/${prefix}" # base name without extension
 
-	$testerExe $testPG $testGT >> $logFile # Evaluate testcase
+    echo "testName = $testName"
+    testGT="${testName}.gtpg"
+    testPG="${testName}.pg"
+    testExe="${testName}.out"
+    export CGPATCH_CG_NAME="${testPG}"
 
-	if [ $? -ne 0 ]; then
-		echo "Failure for file: $testPG. Keeping generated file for inspection"
-		pretty $testPG
-		fails=$((fails + 1))
-	else
-		rm $testExe
-		rm $testPG
-	fi
+    echo "testGT: $testGT"
+    echo "testPG: $testPG"
+    echo "testExe: $testExe"
+    echo "Running testcase $testName with sources: $testSources"
+
+    # Compile
+    echo "$cgpatchExe mpicxx $testSources -o $testExe" 
+    $cgpatchExe mpicxx $testSources -o "$testExe"
+    if [ $? -ne 0 ]; then
+        echo "Compilation failed for testcase $testName"
+        fails=$((fails + 1))
+        continue
+    fi
+
+    # Run test binary
+    echo "Running $testExe"
+    "$testExe"
+
+    # Evaluate output
+    echo "$testerExe $testPG $testGT >> $logFile"
+    $testerExe "$testPG" "$testGT" >> "$logFile"
+    echo "ERGEBNIS: $?"
+    if [ $? -ne 0 ]; then
+        echo "Failure for file: $testPG. Keeping generated file for inspection"
+        pretty "$testPG"
+        fails=$((fails + 1))
+    else
+	echo "SUCCESS"
+        #rm "$testExe"
+        #rm "$testPG"
+    fi
 done
 
 
