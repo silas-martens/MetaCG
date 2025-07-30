@@ -48,6 +48,7 @@ buildDir=$PWD/../../../../${build_dir}/
 cgpatchExe=$buildDir/tools/cgpatch/wrapper/patchcxx
 testerExe=$buildDir/tools/cgpatch/test/cgtester
 cgmerge2Exe="$buildDir/tools/cgmerge2/cgmerge2"
+outputDir=$buildDir/tools/cgpatch/test/integration
 
 # load config file, required to check if using MPI
 if [ -f "${buildDir}/tools/cgpatch/test/integration/config.sh" ]; then
@@ -69,13 +70,13 @@ fi
 function build_and_run_mpi_testcase {
 	local testName="$1"
 	local testSources="$2"
-	local testExe="${testName}.out"
-	local testPG="${testName}.pg"
-	local testGT="${testName}.gtpg"
-	local testMCG="${testName}.mcg"
-	local testSCG="${testName}.ipcg"
+	local testExe="$outputDir/${testName}.out"
+	local testPG="$outputDir/${testName}.pg"
+	local testGT="$outputDir/${testName}.gtpg"
+	local testMCG="$outputDir/${testName}.mcg"
+	local testSCG="$outputDir/${testName}.ipcg"
 
-	export CGPATCH_CG_NAME="${testPG}"
+	export CGPATCH_CG_NAME="$outputDir/${testPG}"
 
 	log "Compiling MPI testcase: $testSources"
 	$cgpatchExe mpicxx $testSources -o "$testExe" >> "$logFile"
@@ -99,13 +100,11 @@ function build_and_run_mpi_testcase {
 function build_and_run_regular_testcase {
 	local testName="$1"
 	local testSources="$2"
-	local testExe="${testName}.out"
-	local testPG="${testName}.pg"
+	local testExe="$outputDir/${testName}.out"
+	local testPG="$outputDir/${testName}.pg"
 	local testGT="${testName}.gtpg"
-	local testMCG="${testName}.mcg"
-	local testSCG="${testName}.ipcg"
-
-	export CGPATCH_CG_NAME="${testPG}"
+	local testMCG="$outputDir/${testName}.mcg"
+	local testSCG="$outputDir/${testName}.ipcg"
 
 	log "Compiling regular testcase: $testSources"
 	$cgpatchExe clang++ $testSources -o "$testExe" >> "$logFile"
