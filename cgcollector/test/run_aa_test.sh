@@ -14,6 +14,7 @@ if [ $? -eq 1 ]; then
   exit 1
 else
   testerExe=../../${build_dir}/cgcollector/test/mcgtester
+  testerExe="../../${build_dir}/tools/cgdiff/cgdiff --ignore-md"
 fi
 
 if [[ $(type -P $cgcollectorExe) ]]; then

@@ -11,7 +11,7 @@ if [ $? -eq 1 ]; then
   echo "The file seems also non-present in ../${build_dir}/test. Aborting test. Failure! Please build the tester first."
   exit 1
 else
-  testerExe=../../${build_dir}/cgcollector/test/mcgtester
+  testerExe="../../${build_dir}/tools/cgdiff/cgdiff --ignore-md"
 fi
 
 if [[ $(type -P $cgcollectorExe) ]]; then

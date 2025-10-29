@@ -1,6 +1,6 @@
 
 cgcollectorExe=cgcollector
-testerExe=cgsimpletester
+testerExe="/home/sm41myca/work/github/MetaCG/build/tools/cgdiff --ignore-md"
 cgmergeExe=cgmerge
 build_dir=build # may be changed with opt 'b'
 
@@ -34,6 +34,7 @@ function applyFileFormatOneToSingleTU {
   $cgcollectorExe --metacg-format-version=1 ${addFlags} --output ${gfile} $tfile -- >>log/testrun.log 2>&1
   cat $gfile | python3 -m json.tool > ${gfile}_
   mv ${gfile}_ ${gfile}
+  echo "Running ${testerExe} on ${tgt} and ${gfile}"
   $testerExe $tgt $gfile >>log/testrun.log 2>&1
 
   if [ $? -ne 0 ]; then
@@ -67,10 +68,11 @@ function applyFileFormatTwoToSingleTU {
   gfile=${testCaseFile/cpp/${infix}ipcg}-${CI_CONCURRENT_ID}
   tgt=${testCaseFile/cpp/${infix}gtmcg}
 
- echo "Running tester on ${tfile}"
+ echo "Running ${testerExe} on ${tfile}"
   $cgcollectorExe --metacg-format-version=2 ${addFlags} --output ${gfile} $tfile -- >>log/testrun.log 2>&1
   cat $gfile | python3 -m json.tool > ${gfile}_
   mv ${gfile}_ ${gfile}
+  echo "Running ${testerExe} on ${tgt} vs ${gfile}"
   $testerExe $tgt $gfile >>log/testrun.log 2>&1
 
   if [ $? -ne 0 ]; then
@@ -95,10 +97,11 @@ function applyFileFormatTwoToSingleTUWithAA {
   gfile=${testCaseFile/cpp/ipcg}-${CI_CONCURRENT_ID}
   tgt=${testCaseFile/cpp/gtaacg}
 
- echo "Running tester on ${tfile}"
+ echo "Running ${testerExe} on ${tfile}"
   $cgcollectorExe --metacg-format-version=2 --capture-ctors-dtors --capture-stack-ctors-dtors --enable-AA ${addFlags} --output ${gfile} $tfile -- >>log/testrun.log 2>&1
   cat $gfile | python3 -m json.tool > ${gfile}_
   mv ${gfile}_ ${gfile}
+  echo "Running ${testerExe} on ${tgt} vs ${gfile}"
   $testerExe $tgt $gfile >>log/testrun.log 2>&1
 
   if [ $? -ne 0 ]; then
@@ -135,6 +138,7 @@ function applyFileFormatOneToMultiTU {
   cat ./input/multiTU/${ipcgTbFile} | python3 -m json.tool >./input/multiTU/${ipcgTbFile}_
   mv ./input/multiTU/${ipcgTbFile}_ ./input/multiTU/${ipcgTbFile}
 
+  echo "[multiTU]"
   $testerExe ./input/multiTU/${ipcgTaFile} ./input/multiTU/${gtaFile} >>log/testrun.log 2>&1
   aErr=$?
   $testerExe ./input/multiTU/${ipcgTbFile} ./input/multiTU/${gtbFile} >>log/testrun.log 2>&1
