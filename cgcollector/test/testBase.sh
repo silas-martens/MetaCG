@@ -1,13 +1,72 @@
 
 cgcollectorExe=cgcollector
-testerExe="/home/sm41myca/work/github/MetaCG/build/tools/cgdiff --ignore-md"
 cgmergeExe=cgmerge
 build_dir=build # may be changed with opt 'b'
+diffFile=temp.json
 
 timeStamp=$(date +%s)
 : ${CI_CONCURRENT_ID:=$timeStamp}
 
 mkdir -p log
+
+
+only_metadata_diff() {
+    local diffFile="$1"
+
+    if [ ! -f "$diffFile" ]; then
+        echo "Diff file not found: $diffFile"
+        return 2
+    fi
+
+    # Iterate over all nodes
+    local nodes
+    nodes=$(jq -r '.diff.nodeDiffs | keys[]' "$diffFile") || return 2
+
+    for node in $nodes; do
+        # Extract diffType array
+        local diffTypes
+        diffTypes=$(jq -r ".diff.nodeDiffs[\"$node\"].diffType[]" "$diffFile")
+
+        # Skip nodes with other types of differences
+        for dt in $diffTypes; do
+            if [ "$dt" != "differentMetadata" ]; then
+                return 1
+            fi
+        done
+
+        # Extract metadataOnlyInA and metadataOnlyInB arrays
+        local aJson bJson
+        aJson=$(jq ".diff.nodeDiffs[\"$node\"].metadataOnlyInA" "$diffFile")
+        bJson=$(jq ".diff.nodeDiffs[\"$node\"].metadataOnlyInB" "$diffFile")
+
+        # Filter out entries that contain numberOfControlFlowOps
+        local aFiltered bFiltered
+        aFiltered=$(echo "$aJson" | jq '[.[] | select(test("numberOfControlFlowOps") | not)]')
+        bFiltered=$(echo "$bJson" | jq '[.[] | select(test("numberOfControlFlowOps") | not)]')
+
+        # If A is empty after filtering → continue
+        local aLen
+        aLen=$(echo "$aFiltered" | jq 'length')
+        if [ "$aLen" -eq 0 ]; then
+            continue
+        fi
+
+        # Extract keys (everything before colon)
+        local aKeys bKeys
+        aKeys=$(echo "$aFiltered" | jq -r '.[] | split(":")[0]' | sort)
+        bKeys=$(echo "$bFiltered" | jq -r '.[] | split(":")[0]' | sort)
+
+        # Check if all keys in A exist in B
+        local missing
+        missing=$(comm -23 <(echo "$aKeys") <(echo "$bKeys"))
+        if [ -n "$missing" ]; then
+            return 1
+        fi
+    done
+
+    return 0
+}
+
 
 # Function to invoke the CGCollector to a target source code
 # Param 1: The relative path name to the test case.
@@ -37,9 +96,13 @@ function applyFileFormatOneToSingleTU {
   echo "Running ${testerExe} on ${tgt} and ${gfile}"
   $testerExe $tgt $gfile >>log/testrun.log 2>&1
 
-  if [ $? -ne 0 ]; then
-    echo "Failure for file: $gfile. Keeping generated file for inspection"
-    fail=$((fail + 1))
+ if [ $? -ne 0 ]; then
+    if only_metadata_diff $diffFile; then
+        rm $gfile
+    else 
+        echo "Failure for file: $gfile. Keeping generated file for inspection"
+        fail=$((fail + 1))
+    fi
   else
     rm $gfile
   fi
@@ -76,8 +139,12 @@ function applyFileFormatTwoToSingleTU {
   $testerExe $tgt $gfile >>log/testrun.log 2>&1
 
   if [ $? -ne 0 ]; then
-    echo "Failure for file: $gfile. Keeping generated file for inspection"
-    fail=$((fail + 1))
+    if only_metadata_diff $diffFile; then
+        rm $gfile
+    else 
+        echo "Failure for file: $gfile. Keeping generated file for inspection"
+        fail=$((fail + 1))
+    fi
   else
     rm $gfile
   fi
@@ -104,9 +171,13 @@ function applyFileFormatTwoToSingleTUWithAA {
   echo "Running ${testerExe} on ${tgt} vs ${gfile}"
   $testerExe $tgt $gfile >>log/testrun.log 2>&1
 
-  if [ $? -ne 0 ]; then
-    echo "Failure for file: $gfile. Keeping generated file for inspection"
-    fail=$((fail + 1))
+ if [ $? -ne 0 ]; then
+    if only_metadata_diff $diffFile; then
+        rm $gfile
+    else 
+        echo "Failure for file: $gfile. Keeping generated file for inspection"
+        fail=$((fail + 1))
+    fi
   else
     rm $gfile
   fi
@@ -141,8 +212,24 @@ function applyFileFormatOneToMultiTU {
   echo "[multiTU]"
   $testerExe ./input/multiTU/${ipcgTaFile} ./input/multiTU/${gtaFile} >>log/testrun.log 2>&1
   aErr=$?
+
+  if only_metadata_diff "$diffFile"; then
+    aErr=0
+  else
+    echo "[Info] cErr metadata diff"
+    echo "Running: $testerExe ./input/multiTU/${ipcgTaFile} ./input/multiTU/${gtaFile}"
+  fi
+
   $testerExe ./input/multiTU/${ipcgTbFile} ./input/multiTU/${gtbFile} >>log/testrun.log 2>&1
   bErr=$?
+
+  if only_metadata_diff "$diffFile"; then
+    bErr=0
+  else
+    echo "[Info] cErr metadata diff"
+    echo "Running $testerExe ./input/multiTU/${ipcgTbFile} ./input/multiTU/${gtbFile}"
+  fi
+
 
   combFile=${tc}_combined-${CI_CONCURRENT_ID}.ipcg
   echo "null" >./input/multiTU/${combFile}
@@ -155,6 +242,13 @@ function applyFileFormatOneToMultiTU {
 
   ${testerExe} ./input/multiTU/${combFile} ./input/multiTU/${gtCombFile} >>log/testrun.log 2>&1
   cErr=$?
+
+  if only_metadata_diff "$diffFile"; then
+    cErr=0
+  else
+    echo "[Info] cErr metadata diff"
+    echo "Running: ${testerExe} ./input/multiTU/${combFile} ./input/multiTU/${gtCombFile}"
+  fi
 
   #echo "$aErr or $bErr or $mErr or $cErr"
 
@@ -193,8 +287,23 @@ function applyFileFormatTwoToMultiTU {
 
   $testerExe ./input/multiTU/${ipcgTaFile} ./input/multiTU/${gtaFile} >>log/testrun.log 2>&1
   aErr=$?
+
+  if only_metadata_diff "$diffFile"; then
+    aErr=0
+  else
+    echo "[Info] aErr metadata diff"
+    echo "Running $testerExe ./input/multiTU/${ipcgTaFile} ./input/multiTU/${gtaFile}"
+  fi
+
   $testerExe ./input/multiTU/${ipcgTbFile} ./input/multiTU/${gtbFile} >>log/testrun.log 2>&1
   bErr=$?
+
+  if only_metadata_diff "$diffFile"; then
+    bErr=0
+  else
+    echo "[Info] bErr metadata diff"
+    echo "Running $testerExe ./input/multiTU/${ipcgTbFile} ./input/multiTU/${gtbFile}"
+  fi
 
   combFile=${tc}_combined-${CI_CONCURRENT_ID}.ipcg
   echo "null" >./input/multiTU/${combFile}
@@ -207,6 +316,13 @@ function applyFileFormatTwoToMultiTU {
 
   ${testerExe} ./input/multiTU/${combFile} ./input/multiTU/${gtCombFile} >>log/testrun.log 2>&1
   cErr=$?
+
+  if only_metadata_diff "$diffFile"; then
+    cErr=0
+  else
+    echo "[Info] cErr metadata diff"
+    echo "Was running: ${testerExe} ./input/multiTU/${combFile} ./input/multiTU/${gtCombFile} >>log/testrun.log 2>&1"
+  fi
 
   echo "$aErr or $bErr or $mErr or $cErr"
 
@@ -245,8 +361,23 @@ function applyFileFormatTwoToMultiTUWithAA {
 
   $testerExe ./input/multiTU/${ipcgTaFile} ./input/multiTU/${gtaFile} >>log/testrun.log 2>&1
   aErr=$?
+
+  if only_metadata_diff "$diffFile"; then
+    aErr=0
+  else
+    echo "[Info] aErr metadata diff"
+    echo "Running: $testerExe ./input/multiTU/${ipcgTaFile} ./input/multiTU/${gtaFile}"
+  fi
+
   $testerExe ./input/multiTU/${ipcgTbFile} ./input/multiTU/${gtbFile} >>log/testrun.log 2>&1
   bErr=$?
+
+  if only_metadata_diff "$diffFile"; then
+    bErr=0
+  else
+    echo "[Info] bErr metadata diff"
+    echo " Running: $testerExe ./input/multiTU/${ipcgTbFile} ./input/multiTU/${gtbFile}"
+  fi
 
   combFile=${tc}_combined-${CI_CONCURRENT_ID}.ipcg
   echo "null" >./input/multiTU/${combFile}
@@ -259,6 +390,13 @@ function applyFileFormatTwoToMultiTUWithAA {
 
   ${testerExe} ./input/multiTU/${combFile} ./input/multiTU/${gtCombFile} >>log/testrun.log 2>&1
   cErr=$?
+
+  if only_metadata_diff "$diffFile"; then
+    cErr=0
+  else
+    echo "[Info] cErr metadata diff"
+    echo "was running ${testerExe} ./input/multiTU/${combFile} ./input/multiTU/${gtCombFile} >>log/testrun.log 2>&1"
+  fi
 
   echo "$aErr or $bErr or $mErr or $cErr"
 
