@@ -23,7 +23,7 @@ function applyFileFormatTwoToSingleTU {
   $cgcollectorExe ${addFlags} $tfile --extra-arg=-std=c++17 -- >>log/testrun.log 2>&1
   cat $gfile | python3 -m json.tool > ${gfile}_
   mv ${gfile}_ ${gfile}
-  #echo "$testerExe $tgt $gfile"
+  echo "$testerExe $tgt $gfile"
 
   $testerExe -o temp.json $tgt $gfile >>log/testrun.log 2>&1
 
