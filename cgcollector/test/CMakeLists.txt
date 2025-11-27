@@ -16,8 +16,7 @@ add_collector_lib(stdtester)
 default_compile_options(stdtester)
 
 install(
-  TARGETS cgsimpletester
-          stdtester
+  TARGETS cgsimpletester stdtester
   EXPORT ${TARGETS_EXPORT_NAME}
   RUNTIME DESTINATION bin
 )
