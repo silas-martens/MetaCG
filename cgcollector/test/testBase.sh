@@ -90,11 +90,9 @@ function applyFileFormatTwoToSingleTU {
   gfile=${testCaseFile/cpp/${infix}ipcg}-${CI_CONCURRENT_ID}
   tgt=${testCaseFile/cpp/${infix}gtmcg}
 
- echo "Running ${testerExe} on ${tfile}"
   $cgcollectorExe --metacg-format-version=2 ${addFlags} --output ${gfile} $tfile -- >>log/testrun.log 2>&1
   cat $gfile | python3 -m json.tool > ${gfile}_
   mv ${gfile}_ ${gfile}
-  echo "Running ${testerExe} on ${tgt} vs ${gfile}"
   $testerExe $tgt $gfile >>log/testrun.log 2>&1
 
   if [ $? -ne 0 ]; then
