@@ -76,16 +76,16 @@ DomAnalysisResult<NodeT> computeDoms(const GraphT& graph, const NodeT& exitNode)
 
     auto incoming = [&](const NodeT* n) {
         if constexpr (dir == TraverseDir::Forward)
-            return graph.getCallers(n);
+            return graph.getCallers(*n);
         else
-            return graph.getCallees(n);
+            return graph.getCallees(*n);
     };
 
     auto outgoing = [&](const NodeT* n) {
         if constexpr (dir == TraverseDir::Backward)
-            return graph.getCallers(n);
-        else 
-            return graph.getCallees(n);
+            return graph.getCallers(*n);
+        else
+            return graph.getCallees(*n);
     };
 
   using DomDataT = DomData<NodeT>;
@@ -106,9 +106,9 @@ DomAnalysisResult<NodeT> computeDoms(const GraphT& graph, const NodeT& exitNode)
     workQueue.pop_front();
 
     std::vector<const NodeT*> initializedCallees{};
-    for (auto& callee : incoming(nodeData.node)) {
-      if (DomMap[callee].initialized) {
-        initializedCallees.push_back(callee);
+    for (auto* calleePtr : incoming(nodeData.node)) {
+      if (DomMap[calleePtr].initialized) {
+        initializedCallees.push_back(calleePtr);
       }
     }
 
@@ -122,10 +122,10 @@ DomAnalysisResult<NodeT> computeDoms(const GraphT& graph, const NodeT& exitNode)
       nodeData.initialized = true;
 
       auto outs = outgoing(nodeData.node);
-      for (auto& caller : outs) {
-        auto& data = DomMap[caller];
+      for (auto* callerPtr : outs) {
+        auto& data = DomMap[callerPtr];
         if (!data.node) {
-            data.node = caller;
+            data.node = callerPtr;
         }
         addToQueue(&data);
       }
