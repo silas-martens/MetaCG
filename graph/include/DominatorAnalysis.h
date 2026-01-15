@@ -3,10 +3,10 @@
 
 
 #include <deque>
-#include <set>
 #include <unordered_set>
 #include <vector>
-#include <iostream>
+#include<unordered_map>
+#include<algorithm>
 
 namespace metacg::analysis {
 
@@ -94,7 +94,7 @@ DomAnalysisResult<NodeT> computeDoms(const GraphT& graph, const NodeT& exitNode)
 
   std::deque<DomDataT*> workQueue{&DomMap[&exitNode]};
 
-  auto addToQueue = [&workQueue](DomDataT* data) {
+  auto addToQueue = [&workQueue](DomDataT* const data) {
     if (std::find(workQueue.begin(), workQueue.end(), data) ==
         workQueue.end()) {
       workQueue.push_back(data);
