@@ -129,13 +129,6 @@ if(METACG_BUILD_CGCOLLECTOR)
   add_subdirectory(cgcollector)
 endif()
 
-# Build CGPatch: cgpatch-pass, cgpatch-runtime, wrappers, tests
-option(
-  METACG_BUILD_CGPATCH
-  "On or off"
-  OFF
-)
-
 # PIRA analyzer Should PGIS be built
 option(
   METACG_BUILD_PGIS

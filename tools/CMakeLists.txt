@@ -1,3 +1,9 @@
+# Build CGPatch: cgpatch-pass, cgpatch-runtime, wrappers, tests
+option(
+  METACG_BUILD_CGPATCH
+  "On or off"
+  OFF
+)
 if(METACG_BUILD_CGPATCH)
   if(${LLVM_PACKAGE_VERSION}
      GREATER
