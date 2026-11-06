@@ -4,6 +4,8 @@
  * https://github.com/tudasc/metacg/LICENSE.txt
  */
 
+#include "Completion.h"
+#include "CompletionLLVM.h"
 #include "cgcollector2/collector/CodeStatisticsCollector.h"
 #include "cgcollector2/collector/FileInfoCollector.h"
 #include "cgcollector2/collector/GlobalLoopDepthCollector.h"
@@ -131,7 +133,8 @@ cgcollector2::Plugin* loadPlugin(const std::string& pluginPath) {
   std::string err;
   auto lib = llvm::sys::DynamicLibrary::getPermanentLibrary(pluginPath.c_str(), &err);
   if (!lib.isValid()) {
-    metacg::MCGLogger::instance().getErrConsole()->error("Cannot locate the library at {}!\n Reason: {}",  pluginPath, err);
+    metacg::MCGLogger::instance().getErrConsole()->error("Cannot locate the library at {}!\n Reason: {}", pluginPath,
+                                                         err);
     return nullptr;
   }
   metacg::MCGLogger::instance().getConsole()->trace("Getting collection object from plugin {}", pluginPath);
@@ -148,6 +151,12 @@ cgcollector2::Plugin* loadPlugin(const std::string& pluginPath) {
 }
 
 int main(int argc, const char** argv) {
+
+ if (auto result = metacg::completion::handleCompletion(argc, argv, [](std::string_view partial) {
+    metacg::completion::completeLLVMOptions(partial, cgc);})
+  ) {
+    return *result;
+  }
 #if (LLVM_VERSION_MAJOR >= 10) && (LLVM_VERSION_MAJOR <= 12)
   clang::tooling::CommonOptionsParser OP(argc, argv, cgc);
 #else
